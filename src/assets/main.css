@@ -1,0 +1,79 @@
+/* ===== 全局样式覆盖 ===== */
+
+/* 卡片圆角 */
+.el-card { border-radius: 10px; }
+
+/* 表格优化 */
+.el-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: #f5f7fa !important;
+  color: #303133;
+  font-weight: 600;
+  font-size: 13px;
+}
+.el-table td.el-table__cell {
+  font-size: 13px;
+}
+
+/* 分页器 */
+.el-pagination {
+  color: #606266;
+}
+.el-pagination .el-pagination__total {
+  font-size: 13px;
+}
+
+/* 弹窗优化 */
+.nice-dialog .el-dialog__header {
+  border-bottom: 1px solid #f0f2f5;
+  margin-right: 0;
+  padding: 16px 20px;
+}
+.nice-dialog .el-dialog__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.nice-dialog .el-dialog__body {
+  padding: 20px 24px;
+}
+.nice-dialog .el-dialog__footer {
+  border-top: 1px solid #f0f2f5;
+  padding: 12px 20px;
+}
+
+/* 按钮微调 */
+.el-button--primary {
+  border-radius: 6px;
+}
+
+/* 输入框圆角 */
+.el-input__wrapper, .el-select .el-input__wrapper {
+  border-radius: 6px;
+}
+
+/* 标签圆角 */
+.el-tag {
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 去掉菜单焦点虚线 */
+.el-menu-item:focus {
+  outline: none;
+}
