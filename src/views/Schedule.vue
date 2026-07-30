@@ -63,28 +63,39 @@
       </div>
     </div>
 
-    <!-- 添加/编辑排课弹窗 -->
-    <el-dialog v-model="editVisible" :title="editForm.id ? '编辑排课' : '添加排课'" width="520px" @close="resetEditForm">
-      <el-form :model="editForm" label-width="90px">
-        <el-form-item label="教练">
-          <span class="form-text">{{ activeCoach?.name }}</span>
-        </el-form-item>
-        <el-form-item label="日期">
-          <span class="form-text">{{ editForm.dateLabel }}</span>
-        </el-form-item>
-        <el-form-item label="时间段">
-          <span class="form-text">{{ editForm.startTime }} - {{ editForm.endTime }}</span>
-        </el-form-item>
-        <el-form-item label="学员" required>
-          <el-select v-model="editForm.studentId" filterable placeholder="搜索学员姓名/手机号" style="width:100%">
-            <el-option v-for="s in students" :key="s.id" :label="`${s.name}（${s.phone || '无手机'}）`" :value="s.id" />
+    <!-- 批量消课弹窗 -->
+    <el-dialog v-model="editVisible" :title="editingBooking ? '编辑消课' : '批量消课'" width="680px" @close="resetEditForm" :close-on-click-modal="false">
+      <div class="batch-info">
+        <el-tag type="info" size="small">教练：{{ activeCoach?.name }}</el-tag>
+        <el-tag size="small">{{ editForm.dateLabel }}</el-tag>
+        <el-tag size="small">{{ editForm.startTime }} - {{ editForm.endTime }}</el-tag>
+        <el-tag v-if="editForm.lessonContent" type="warning" size="small">{{ editForm.lessonContent }}</el-tag>
+      </div>
+
+      <div class="batch-rows" v-if="!editingBooking">
+        <div class="batch-row" v-for="(row, idx) in rows" :key="idx">
+          <span class="batch-num">{{ idx + 1 }}</span>
+          <el-select v-model="row.studentId" filterable placeholder="选择学员" style="width:200px" @change="onStudentChange(idx)" clearable>
+            <el-option v-for="s in availableStudents(idx)" :key="s.id" :label="`${s.name}（${s.phone || '-'}）`" :value="s.id" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="关联订单">
-          <el-select v-model="editForm.courseOrderId" placeholder="选中学员后自动推荐" style="width:100%" clearable>
-            <el-option v-for="o in studentOrders" :key="o.id" :label="`${o.orderNo} 余${o.remainingLessons}课时`" :value="o.id" />
+          <el-select v-model="row.courseOrderId" placeholder="课包" style="width:220px" clearable :disabled="!row.studentId">
+            <el-option v-for="o in (rowOrders[idx] || [])" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
           </el-select>
-        </el-form-item>
+          <el-button v-if="rows.length > 1" @click="removeRow(idx)" :icon="Delete" circle size="small" type="danger" />
+        </div>
+        <el-button v-if="rows.length < maxSlots" @click="addRow" type="primary" plain size="small" :icon="Plus" style="margin-top:8px">添加学员</el-button>
+      </div>
+
+      <div v-else class="edit-single">
+        <el-select v-model="editForm.studentId" filterable placeholder="选择学员" style="width:220px" @change="loadStudentOrders" clearable>
+          <el-option v-for="s in students" :key="s.id" :label="`${s.name}（${s.phone || '-'}）`" :value="s.id" />
+        </el-select>
+        <el-select v-model="editForm.courseOrderId" placeholder="课包" style="width:260px" clearable :disabled="!editForm.studentId">
+          <el-option v-for="o in studentOrders" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
+        </el-select>
+      </div>
+
+      <el-form :model="editForm" label-width="80px" style="margin-top:16px">
         <el-form-item label="课程内容">
           <el-input v-model="editForm.lessonContent" placeholder="如：正手攻球、多球训练" />
         </el-form-item>
@@ -93,9 +104,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button v-if="editForm.id" type="danger" @click="handleDelete" :loading="saving" style="margin-right:auto">取消排课</el-button>
+        <el-button v-if="editingBooking" type="danger" @click="handleDelete" :loading="saving" style="margin-right:auto">取消消课</el-button>
         <el-button @click="editVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
+        <el-button type="primary" @click="handleSave" :loading="saving">{{ editingBooking ? '保存' : `批量消课（${rows.length}人）` }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -183,30 +194,72 @@ const getColor = (studentId) => {
 const getBookings = (date, slotKey) => {
   return scheduleData.value.filter(s => {
     const sDate = typeof s.scheduleDate === 'string' ? s.scheduleDate : s.scheduleDate
-    return sDate === date && s.startTime === slotKey.split('-')[0]
+    const slotStart = slotKey.split('-')[0]
+    const sTime = (s.startTime || '').substring(0, 5)
+    return sDate === date && sTime === slotStart
   })
 }
 
 // ===== 弹窗 =====
 const editVisible = ref(false)
 const saving = ref(false)
-const studentOrders = ref([])
+const editingBooking = ref(false) // 新建=批量，编辑=单个
+const studentOrders = ref([])      // 编辑单个时用
+const maxSlots = 6
+
+// 批量行 [{studentId, courseOrderId}]
+const rows = ref([{ studentId: null, courseOrderId: null }])
+const rowOrders = ref([])  // rows[0]={studentId, courseOrderId} → rowOrders[0]=[{...orders}]
+
 const editForm = ref({
-  id: null, studentId: null, courseOrderId: null,
+  id: null,
   lessonContent: '', remark: '',
   date: '', dateLabel: '', startTime: '', endTime: ''
 })
 
 const resetEditForm = () => {
-  editForm.value = { id: null, studentId: null, courseOrderId: null, lessonContent: '', remark: '', date: '', dateLabel: '', startTime: '', endTime: '' }
+  editingBooking.value = false
+  editForm.value = { id: null, lessonContent: '', remark: '', date: '', dateLabel: '', startTime: '', endTime: '' }
   studentOrders.value = []
+  rows.value = [{ studentId: null, courseOrderId: null }]
+  rowOrders.value = []
+}
+
+const addRow = () => {
+  if (rows.value.length >= maxSlots) return
+  const existing = getBookings(editForm.value.date, `${editForm.value.startTime}-${editForm.value.endTime}`)
+  if (existing.length + rows.value.length >= maxSlots) { ElMessage.warning(`该时段最多${maxSlots}人`); return }
+  rows.value.push({ studentId: null, courseOrderId: null })
+}
+
+const removeRow = (idx) => {
+  rows.value.splice(idx, 1)
+  rowOrders.value.splice(idx, 1)
+}
+
+// 已选的学员ID（防止重复选同一个人）
+const selectedStudentIds = computed(() => rows.value.map(r => r.studentId).filter(Boolean))
+
+const availableStudents = (skipIdx) => {
+  const skipId = rows.value[skipIdx]?.studentId
+  return students.value.filter(s => !selectedStudentIds.value.includes(s.id) || s.id === skipId)
+}
+
+const onStudentChange = async (idx) => {
+  const sid = rows.value[idx].studentId
+  rows.value[idx].courseOrderId = null
+  if (!sid) { rowOrders.value[idx] = []; return }
+  try {
+    const r = await api.get('/course-orders', { params: { studentId: sid, status: 'active', size: 999 } })
+    rowOrders.value[idx] = r.data.records || []
+  } catch { rowOrders.value[idx] = [] }
 }
 
 // ===== 数据加载 =====
 const loadCoaches = async () => {
   try {
-    const r = await api.get('/staff', { params: { role: 'coach', storeId: myStoreId, size: 999 } })
-    coaches.value = r.data.records || r.data || []
+    const r = await api.get('/staff', { params: { storeId: myStoreId, size: 999 } })
+    coaches.value = (r.data.records || r.data || []).filter(s => s.role === 'coach' || s.role === 'shop_owner')
   } catch {}
 }
 
@@ -262,68 +315,100 @@ const loadStudentOrders = async (studentId) => {
 const cellClick = (date, slot) => {
   if (!activeCoachId.value) return
   const dayInfo = weekDays.value.find(d => d.date === date)
+  editingBooking.value = false
   editForm.value = {
-    id: null, studentId: null, courseOrderId: null,
-    lessonContent: '', remark: '',
+    id: null, lessonContent: '', remark: '',
     date, dateLabel: `${dayInfo.weekday} ${dayInfo.label}`,
     startTime: slot.startTime, endTime: slot.endTime
   }
+  rows.value = [{ studentId: null, courseOrderId: null }]
+  rowOrders.value = []
   if (students.value.length === 0) loadStudents()
   editVisible.value = true
 }
 
 const editBooking = (date, slot, booking) => {
+  editingBooking.value = true
   const dayInfo = weekDays.value.find(d => d.date === date)
   editForm.value = {
-    id: booking.id, studentId: booking.studentId, courseOrderId: booking.courseOrderId || null,
+    id: booking.id,
     lessonContent: booking.lessonContent || '', remark: booking.remark || '',
     date, dateLabel: `${dayInfo.weekday} ${dayInfo.label}`,
     startTime: slot.startTime, endTime: slot.endTime
   }
+  // 编辑单个时，复用 loadStudentOrders 填充课包
   loadStudentOrders(booking.studentId)
+  // 把 studentId/courseOrderId 临时挂在 editForm 上给模板用
+  editForm.value.studentId = booking.studentId
+  editForm.value.courseOrderId = booking.courseOrderId
   editVisible.value = true
 }
 
 const handleSave = async () => {
-  if (!editForm.value.studentId) { ElMessage.warning('请选择学员'); return }
-  // 检查同时段是否已满6人
+  if (editingBooking.value) {
+    // ===== 编辑单个 =====
+    if (!editForm.value.studentId) { ElMessage.warning('请选择学员'); return }
+    saving.value = true
+    try {
+      await api.put('/schedules', {
+        id: editForm.value.id,
+        storeId: myStoreId,
+        coachId: activeCoachId.value,
+        studentId: editForm.value.studentId,
+        courseOrderId: editForm.value.courseOrderId || null,
+        scheduleDate: editForm.value.date,
+        startTime: editForm.value.startTime,
+        endTime: editForm.value.endTime,
+        lessonContent: editForm.value.lessonContent,
+        remark: editForm.value.remark
+      })
+      ElMessage.success('保存成功')
+      editVisible.value = false
+      loadSchedule()
+    } catch (e) {
+      ElMessage.error(e?.response?.data?.message || e?.message || '保存失败')
+    } finally { saving.value = false }
+    return
+  }
+
+  // ===== 批量消课 =====
+  const validRows = rows.value.filter(r => r.studentId && r.courseOrderId)
+  if (validRows.length === 0) { ElMessage.warning('请至少完善一条学员课包'); return }
+
   const existing = getBookings(editForm.value.date, `${editForm.value.startTime}-${editForm.value.endTime}`)
-  if (!editForm.value.id && existing.length >= 6) {
-    ElMessage.warning('该时段已满6人，无法继续添加')
+  if (existing.length + validRows.length > maxSlots) {
+    ElMessage.warning(`该时段已有${existing.length}人，最多再添加${maxSlots - existing.length}人`)
     return
   }
 
   saving.value = true
-  try {
-    const payload = {
-      id: editForm.value.id,
-      storeId: myStoreId,
-      coachId: activeCoachId.value,
-      studentId: editForm.value.studentId,
-      courseOrderId: editForm.value.courseOrderId || null,
-      scheduleDate: editForm.value.date,
-      startTime: editForm.value.startTime,
-      endTime: editForm.value.endTime,
-      lessonContent: editForm.value.lessonContent,
-      remark: editForm.value.remark
+  let ok = 0, fail = 0
+  for (const row of validRows) {
+    try {
+      await api.post('/schedules', {
+        storeId: myStoreId,
+        coachId: activeCoachId.value,
+        studentId: row.studentId,
+        courseOrderId: row.courseOrderId,
+        scheduleDate: editForm.value.date,
+        startTime: editForm.value.startTime,
+        endTime: editForm.value.endTime,
+        lessonContent: editForm.value.lessonContent,
+        remark: editForm.value.remark
+      })
+      ok++
+    } catch (e) {
+      fail++
+      console.error('消课失败 row=', row, e)
     }
-    if (editForm.value.id) {
-      await api.put('/schedules', payload)
-    } else {
-      await api.post('/schedules', payload)
-    }
-    ElMessage.success('保存成功')
-    editVisible.value = false
-    loadSchedule()
-  } catch {
-    // handled by interceptor
-  } finally {
-    saving.value = false
   }
+  saving.value = false
+  ElMessage.success(`消课完成：成功${ok}人` + (fail ? `，失败${fail}人` : ''))
+  if (ok > 0) { editVisible.value = false; loadSchedule() }
 }
 
 const handleDelete = () => {
-  ElMessageBox.confirm('确认取消该排课？', '提示', { type: 'warning' })
+  ElMessageBox.confirm('确认取消该消课？', '提示', { type: 'warning' })
     .then(async () => {
       try {
         await api.delete(`/schedules/${editForm.value.id}`)
@@ -335,12 +420,12 @@ const handleDelete = () => {
 }
 
 onMounted(async () => {
-  await loadCoaches()
+  // 先加载学员和教练，再加载课表，否则课表里没名字
+  await Promise.all([loadCoaches(), loadStudents()])
   if (coaches.value.length) {
     activeCoachId.value = coaches.value[0].id
     loadSchedule()
   }
-  loadStudents()
 })
 </script>
 
@@ -419,4 +504,20 @@ onMounted(async () => {
 }
 
 .form-text { font-size: 14px; color: #303133; font-weight: 500; }
+
+.batch-info {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.batch-rows { margin-bottom: 8px; }
+.batch-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.batch-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #409EFF; color: #fff; font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.edit-single {
+  display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
+}
 </style>

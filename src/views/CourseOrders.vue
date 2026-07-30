@@ -5,7 +5,9 @@
         <el-select v-if="isBoss" v-model="filterStoreId" placeholder="全部门店" clearable style="width:160px" @change="onFilterChange">
           <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>
-        <el-input v-model="filters.studentId" placeholder="学员ID" clearable style="width:160px" @keyup.enter="loadData" />
+        <el-input v-model="filters.keyword" placeholder="学员姓名" clearable style="width:180px" @keyup.enter="loadData">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增订单</el-button>
@@ -74,7 +76,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Delete } from '@element-plus/icons-vue'
+import { Edit, Delete, Search } from '@element-plus/icons-vue'
 import api from '../api'
 
 const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -85,7 +87,7 @@ const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisi
 const stores = ref([]), courseTypes = ref([]), coaches = ref([])
 const page = reactive({ current: 1, size: 10, total: 0 })
 const filterStoreId = ref(null)
-const filters = reactive({ studentId: '' })
+const filters = reactive({ keyword: '' })
 const form = reactive({ id: null, orderNo: '', storeId: 1, studentId: 1, courseTypeId: 1, paidAmount: 0, salesId: null, coachId: null, remark: '', status: 'active', source: '' })
 
 const loadRefs = async () => {
@@ -103,7 +105,7 @@ const loadCoaches = async () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, studentId: filters.studentId || undefined }
+    const params = { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined }
     const res = await api.get('/course-orders', { params })
     const records = res.data.records
     if (stores.value.length > 0) {

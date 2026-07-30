@@ -25,7 +25,6 @@
       <el-table-column label="操作" width="100" fixed="right" align="center">
         <template #default="{row}">
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>
-          <el-tooltip content="删除" placement="top"><el-button link type="danger" :icon="Delete" @click="handleDelete(row)" /></el-tooltip>
         </template>
       </el-table-column>
     </el-table>
@@ -39,7 +38,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="教练" required>
-          <el-select v-model="form.coachId" placeholder="选择教练" style="width:100%">
+          <el-select v-model="form.coachId" placeholder="选择教练" style="width:100%" :disabled="isCoach">
             <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
@@ -53,20 +52,22 @@
         <el-form-item label="上课时间"><el-time-picker v-model="form.recordTime" format="HH:mm:ss" value-format="HH:mm:ss" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
       </el-form>
-      <template #footer><el-button @click="dialogVisible=false">取消</el-button><el-button type="primary" @click="handleSave" :loading="saving">保存</el-button></template>
+      <template #footer><el-button @click="dialogVisible=false">取消</el-button><el-button type="primary" @click="handleSave" :loading="saving">确认消课</el-button></template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Delete } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Edit } from '@element-plus/icons-vue'
 import api from '../api'
 
 const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
 const isBoss = computed(() => userInfo.role === 'boss')
+const isCoach = computed(() => userInfo.role === 'coach')
 const myStoreId = computed(() => userInfo.storeId)
+const myId = computed(() => userInfo.id)
 
 const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisible = ref(false)
 const stores = ref([]), coaches = ref([]), students = ref([]), studentOrders = ref([])
@@ -78,10 +79,12 @@ const form = reactive({ id: null, studentId: null, coachId: null, courseOrderId:
 
 const loadRefs = async () => {
   try {
+    const params = { size: 999 }
+    if (!isBoss.value) params.storeId = myStoreId.value
     const [sr, er, str] = await Promise.all([
       api.get('/stores', { params: { size: 999 } }),
-      api.get('/staff', { params: { role: 'coach', storeId: isBoss.value ? undefined : myStoreId.value, size: 999 } }),
-      api.get('/students', { params: { storeId: isBoss.value ? undefined : myStoreId.value, size: 9999 } })
+      api.get('/staff', { params: { ...params, size: 999 } }),
+      api.get('/students', { params: { ...params, size: 9999 } })
     ])
     stores.value = sr.data.records; coaches.value = er.data.records; students.value = str.data.records
   } catch {}
@@ -119,8 +122,13 @@ const openDialog = (row) => {
     })
     loadStudentOrders(row.studentId)
   } else {
-    const def = { id: null, studentId: null, coachId: coaches.value[0]?.id || null, courseOrderId: null, lessons: 1, recordDate: today, recordTime: '14:00:00', remark: '' }
-    Object.assign(form, def)
+    // 新建消课：教练默认填自己，学员/订单空
+    Object.assign(form, {
+      id: null, studentId: null,
+      coachId: isCoach.value ? myId.value : (coaches.value[0]?.id || null),
+      courseOrderId: null, lessons: 1,
+      recordDate: today, recordTime: '14:00:00', remark: ''
+    })
     studentOrders.value = []
   }
   dialogVisible.value = true
@@ -128,21 +136,36 @@ const openDialog = (row) => {
 const handleSave = async () => {
   saving.value = true
   try {
-    if (form.id) {
-      // 编辑只传可修改字段
+    // 新建消课：前端必填校验
+    if (!form.id) {
+      if (!form.studentId) { ElMessage.warning('请选择学员'); return }
+      if (!form.coachId) { ElMessage.warning('请选择教练'); return }
+      if (!form.courseOrderId) { ElMessage.warning('请选择订单'); return }
+      if (!form.lessons || form.lessons <= 0) { ElMessage.warning('课时必须大于0'); return }
+
+      if (isCoach.value && form.coachId !== myId.value) {
+        ElMessage.warning('只能给自己消课'); return
+      }
+
+      await api.post('/course-consumptions', {
+        studentId: form.studentId,
+        coachId: form.coachId,
+        courseOrderId: form.courseOrderId,
+        lessons: form.lessons,
+        recordDate: form.recordDate,
+        recordTime: form.recordTime,
+        remark: form.remark || ''
+      })
+    } else {
       await api.put('/course-consumptions', {
         id: form.id, remark: form.remark, recordDate: form.recordDate, recordTime: form.recordTime
       })
-    } else {
-      await api.post('/course-consumptions', form)
     }
-    ElMessage.success('保存成功'); dialogVisible.value = false; loadData()
+    ElMessage.success('消课成功'); dialogVisible.value = false; loadData()
+  } catch (e) {
+    const msg = e?.response?.data?.message || e?.message || '消课失败'
+    ElMessage.error(msg)
   } finally { saving.value = false }
-}
-const handleDelete = (row) => {
-  ElMessageBox.confirm('确认删除此消课记录？', '提示', { type: 'warning' }).then(async () => {
-    await api.delete(`/course-consumptions/${row.id}`); ElMessage.success('已删除'); loadData()
-  }).catch(() => {})
 }
 const onFilterChange = () => { page.current = 1; loadData() }
 onMounted(async () => { await loadRefs(); loadData() })

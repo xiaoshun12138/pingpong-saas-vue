@@ -17,7 +17,7 @@
     <el-row :gutter="16" class="target-row" style="margin-bottom:16px">
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">年度目标完成率</div>
+          <div class="chart-title">年度业绩目标完成率</div>
           <div ref="yearChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: ¥{{ formatMoney(yearTarget) }}</span>
@@ -28,7 +28,7 @@
       </el-col>
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">月度目标完成率</div>
+          <div class="chart-title">月度业绩目标完成率</div>
           <div ref="monthChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: ¥{{ formatMoney(monthTarget) }}</span>
@@ -39,7 +39,7 @@
       </el-col>
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">周度目标完成率</div>
+          <div class="chart-title">周度业绩目标完成率</div>
           <div ref="weekChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: ¥{{ formatMoney(weekTarget) }}</span>
@@ -58,7 +58,7 @@
 
     <!-- 柱状图：各门店目标对比 -->
     <div class="chart-card" style="margin-bottom:16px">
-      <div class="chart-title">各门店月度目标与完成</div>
+      <div class="chart-title">各门店月度业绩目标与完成</div>
       <div ref="storeChartRef" class="bar-chart"></div>
     </div>
 
@@ -230,8 +230,8 @@ const updateStoreChart = () => {
   storeChart.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['目标', '已完成'] },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: stores, axisLabel: { rotate: 30 } },
+    grid: { left: '3%', right: '4%', bottom: stores.length > 4 ? '15%' : '3%', containLabel: true },
+    xAxis: { type: 'category', data: stores, axisLabel: { interval: 0, fontSize: 11 } },
     yAxis: { type: 'value', axisLabel: { formatter: v => v >= 10000 ? (v/10000) + '万' : v } },
     series: [
       { name: '目标', type: 'bar', data: targets, itemStyle: { color: '#E4E7ED', borderRadius: [4, 4, 0, 0] } },

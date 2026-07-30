@@ -17,7 +17,7 @@
     <el-row :gutter="16" class="target-row" style="margin-bottom:16px">
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">年度消课目标完成率</div>
+          <div class="chart-title">年度课消目标完成率</div>
           <div ref="yearChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: {{ formatMoney(yearTarget) }}</span>
@@ -28,7 +28,7 @@
       </el-col>
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">月度消课目标完成率</div>
+          <div class="chart-title">月度课消目标完成率</div>
           <div ref="monthChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: {{ formatMoney(monthTarget) }}</span>
@@ -39,7 +39,7 @@
       </el-col>
       <el-col :span="8">
         <div class="chart-card">
-          <div class="chart-title">周度消课目标完成率</div>
+          <div class="chart-title">周度课消目标完成率</div>
           <div ref="weekChartRef" class="pie-chart"></div>
           <div class="chart-summary">
             <span>目标: {{ formatMoney(weekTarget) }}</span>
@@ -52,19 +52,19 @@
 
     <!-- 折线图：消课金额走势 -->
     <div class="chart-card" style="margin-bottom:16px">
-      <div class="chart-title">{{ chartTitlePrefix }}各月消课金额走势</div>
+      <div class="chart-title">{{ chartTitlePrefix }}各月课消金额走势</div>
       <div ref="trendChartRef" class="line-chart"></div>
     </div>
 
     <!-- 柱状图：各门店消课目标对比 -->
     <div class="chart-card" style="margin-bottom:16px">
-      <div class="chart-title">各门店月度消课目标与完成</div>
+      <div class="chart-title">各门店月度课消目标与完成</div>
       <div ref="storeChartRef" class="bar-chart"></div>
     </div>
 
     <!-- 表格：各门店每月消课明细 -->
     <div class="chart-card">
-      <div class="chart-title">各门店每月消课金额明细</div>
+      <div class="chart-title">各门店每月课消金额明细</div>
       <el-table :data="tableData" v-loading="loading" stripe size="small">
         <el-table-column prop="storeName" label="门店" min-width="120" fixed />
         <el-table-column v-for="m in 12" :key="m" :label="m + '月'" width="100" align="right">
@@ -231,8 +231,8 @@ const updateStoreChart = () => {
   storeChart.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}<br/>{a0}: ¥{c0}<br/>{a1}: ¥{c1}' },
     legend: { data: ['目标', '已完成'] },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: storeNames, axisLabel: { rotate: 30 } },
+    grid: { left: '3%', right: '4%', bottom: storeNames.length > 4 ? '15%' : '3%', containLabel: true },
+    xAxis: { type: 'category', data: storeNames, axisLabel: { interval: 0, fontSize: 11 } },
     yAxis: { type: 'value', axisLabel: { formatter: v => v >= 10000 ? (v/10000).toFixed(1) + '万' : '¥' + v } },
     series: [
       { name: '目标', type: 'bar', data: targets, itemStyle: { color: '#E4E7ED', borderRadius: [4, 4, 0, 0] } },

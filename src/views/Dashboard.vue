@@ -23,12 +23,12 @@
           <div ref="barChartRef" class="chart-canvas"></div>
         </div>
         <div class="chart-card chart-side">
-          <div class="chart-title"><span>🥧 本月营收构成</span></div>
+          <div class="chart-title"><span>本月营收构成</span></div>
           <div ref="pieChartRef" class="chart-canvas"></div>
         </div>
       </div>
       <div class="table-card">
-        <div class="chart-title"><span>📋 门店业绩明细</span></div>
+        <div class="chart-title"><span>门店业绩明细</span></div>
         <el-table :data="storeData" stripe size="small" style="width:100%">
           <el-table-column prop="storeName" label="门店" min-width="120" />
           <el-table-column prop="salesAmount" label="本月销售额" width="140" align="right">
@@ -52,7 +52,7 @@
       <div class="rankings-section">
         <div class="ranking-block">
           <div class="ranking-header">
-            <h3>🏆 教练课消排名</h3>
+            <h3>教练课消排名</h3>
             <el-tag size="small" type="success">本月消课课时</el-tag>
           </div>
           <div class="ranking-list">
@@ -68,7 +68,7 @@
         </div>
         <div class="ranking-block">
           <div class="ranking-header">
-            <h3>💪 教练业绩排名</h3>
+            <h3>教练业绩排名</h3>
             <el-tag size="small" type="warning">本月订单金额</el-tag>
           </div>
           <div class="ranking-list">
@@ -84,7 +84,7 @@
         </div>
         <div class="ranking-block">
           <div class="ranking-header">
-            <h3>🔥 销售业绩排名</h3>
+            <h3>销售业绩排名</h3>
             <el-tag size="small" type="danger">本月订单金额</el-tag>
           </div>
           <div class="ranking-list">
@@ -400,7 +400,7 @@ onMounted(async () => {
         { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
         { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
         { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月金额', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
+        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
         { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
       ]
       if (perfRes.data) {
@@ -458,7 +458,7 @@ onMounted(async () => {
         { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
         { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
         { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月金额', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
+        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
         { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
       ]
     } else {
@@ -469,7 +469,7 @@ onMounted(async () => {
         { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
         { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
         { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月金额', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
+        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
         { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
       ]
     }
