@@ -122,16 +122,16 @@
             <div class="target-detail">
               <div class="detail-row">
                 <span class="detail-label">目标</span>
-                <span class="detail-value">¥{{ formatMoney(salesTarget) }}</span>
+                <span class="detail-value">{{ formatMoney(salesTarget) }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">已完成</span>
-                <span class="detail-value done">¥{{ formatMoney(salesActual) }}</span>
+                <span class="detail-value done">{{ formatMoney(salesActual) }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">差额</span>
                 <span class="detail-value" :class="salesGap >= 0 ? 'gap-bad' : 'gap-good'">
-                  {{ salesGap >= 0 ? '还差' : '超出' }} ¥{{ formatMoney(Math.abs(salesGap)) }}
+                  {{ salesGap >= 0 ? '还差' : '超出' }} {{ formatMoney(Math.abs(salesGap)) }}
                 </span>
               </div>
             </div>
