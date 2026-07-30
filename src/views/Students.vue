@@ -10,9 +10,6 @@
         </el-input>
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
-      <el-button type="primary" @click="openDialog()">
-        <el-icon><Plus /></el-icon>&nbsp;新增学员
-      </el-button>
     </div>
 
     <el-table :data="tableData" v-loading="loading" stripe style="width:100%" row-key="id"
@@ -94,10 +91,10 @@
     <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total"
                    layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
 
-    <!-- 编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="form.id?'编辑学员':'新增学员'" width="480px" class="nice-dialog">
+    <!-- 编辑弹窗（仅编辑已有学员常用信息，新增学员通过订单页面自动创建） -->
+    <el-dialog v-model="dialogVisible" title="编辑学员" width="480px" class="nice-dialog">
       <el-form :model="form" label-width="80px">
-        <el-form-item label="姓名" required><el-input v-model="form.name" placeholder="请输入姓名" /></el-form-item>
+        <el-form-item label="姓名"><span class="form-text">{{ form.name }}</span></el-form-item>
         <el-form-item label="手机号"><el-input v-model="form.phone" placeholder="请输入手机号" /></el-form-item>
         <el-form-item label="年龄"><el-input-number v-model="form.age" :min="3" :max="80" /></el-form-item>
         <el-form-item v-if="isBoss" label="所属门店">

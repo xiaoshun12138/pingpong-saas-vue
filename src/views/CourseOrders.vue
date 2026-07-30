@@ -37,28 +37,35 @@
       </el-table-column>
     </el-table>
     <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
-    <el-dialog v-model="dialogVisible" :title="form.id?'编辑订单':'新增订单'" width="600px">
-      <el-alert v-if="!form.id" title="总课时将从所选课包自动带入，剩余课时初始=总课时" type="info" :closable="false" style="margin-bottom:12px" />
+    <el-dialog v-model="dialogVisible" :title="form.id?'编辑订单':'新增订单'" width="560px">
+      <el-alert v-if="!form.id" title="订单编号自动生成，填学员姓名即可下单" type="info" :closable="false" style="margin-bottom:12px" />
       <el-form :model="form" label-width="90px">
-        <el-form-item label="订单编号" required><el-input v-model="form.orderNo" /></el-form-item>
         <el-form-item v-if="isBoss" label="所属门店">
           <el-select v-model="form.storeId" placeholder="选择门店" style="width:100%">
             <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="学员ID" required><el-input-number v-model="form.studentId" :min="1" /></el-form-item>
+        <el-form-item label="学员姓名" required>
+          <el-input v-model="form.studentName" placeholder="输入姓名，新学员自动创建" />
+        </el-form-item>
         <el-form-item label="课包" required>
           <el-select v-model="form.courseTypeId" placeholder="选择课包" style="width:100%" @change="onCourseTypeChange">
-            <el-option v-for="ct in courseTypes" :key="ct.id" :label="`${ct.name} (${ct.totalLessons}课时 ¥${ct.listPrice})`" :value="ct.id" />
+            <el-option v-for="ct in courseTypes" :key="ct.id" :label="`${ct.name}（${ct.totalLessons}课时）`" :value="ct.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="实付金额" required><el-input-number v-model="form.paidAmount" :min="0" :precision="2" /></el-form-item>
-        <el-form-item label="备注"><el-input v-model="form.remark" placeholder="订单备注" /></el-form-item>
-        <el-form-item label="销售ID"><el-input-number v-model="form.salesId" :min="1" /></el-form-item>
-        <el-form-item label="教练">
-          <el-select v-model="form.coachId" placeholder="选择教练" style="width:100%" clearable>
-            <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
-          </el-select>
+        <el-form-item label="实际课时">
+          <el-input-number v-model="form.totalLessons" :min="1" :max="999" />
+          <span class="form-hint">默认为课包课时，可手动改（如送课）</span>
+        </el-form-item>
+        <el-form-item label="实付金额" required>
+          <el-input-number v-model="form.paidAmount" :min="0" :precision="2" style="width:200px" />
+          <span class="form-hint">元</span>
+        </el-form-item>
+        <el-form-item label="销售姓名">
+          <el-input v-model="form.salesName" placeholder="签单人姓名，留空不填" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remark" placeholder="订单备注" />
         </el-form-item>
         <el-form-item v-if="form.id" label="状态">
           <el-select v-model="form.status" :disabled="form.status === 'refunded'">
@@ -84,22 +91,16 @@ const isBoss = computed(() => userInfo.role === 'boss')
 const myStoreId = computed(() => userInfo.storeId)
 
 const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisible = ref(false)
-const stores = ref([]), courseTypes = ref([]), coaches = ref([])
+const stores = ref([]), courseTypes = ref([])
 const page = reactive({ current: 1, size: 10, total: 0 })
 const filterStoreId = ref(null)
 const filters = reactive({ keyword: '' })
-const form = reactive({ id: null, orderNo: '', storeId: 1, studentId: 1, courseTypeId: 1, paidAmount: 0, salesId: null, coachId: null, remark: '', status: 'active', source: '' })
+const form = reactive({ id: null, storeId: null, studentName: '', courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '', status: 'active' })
 
 const loadRefs = async () => {
   try {
     const [sr, cr] = await Promise.all([api.get('/stores', { params: { size: 999 } }), api.get('/course-types', { params: { size: 999 } })])
     stores.value = sr.data.records; courseTypes.value = cr.data.records
-  } catch {}
-}
-const loadCoaches = async () => {
-  try {
-    const r = await api.get('/staff', { params: { role: 'coach', storeId: isBoss.value ? undefined : myStoreId.value, size: 999 } })
-    coaches.value = r.data.records
   } catch {}
 }
 const loadData = async () => {
@@ -117,36 +118,43 @@ const loadData = async () => {
 }
 const onCourseTypeChange = (ctId) => {
   const ct = courseTypes.value.find(c => c.id === ctId)
-  // 新增时选中课包自动填价格（可手动改）
   if (ct && !form.id) {
     form.paidAmount = ct.listPrice
+    form.totalLessons = ct.totalLessons
   }
 }
 const openDialog = (row) => {
   if (row) {
     Object.assign(form, row)
   } else {
-    const def = { id: null, orderNo: 'ORD' + Date.now(), storeId: myStoreId.value || 1, studentId: 1, courseTypeId: courseTypes.value[0]?.id || 1, paidAmount: courseTypes.value[0]?.listPrice || 0, salesId: null, coachId: null, remark: '', status: 'active', source: '' }
+    const def = { id: null, storeId: myStoreId.value || null, studentName: '', courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '', status: 'active' }
     Object.assign(form, def)
   }
   dialogVisible.value = true
-  loadCoaches()
 }
 const handleSave = async () => {
-  if (!form.orderNo) return ElMessage.warning('请填写订单编号')
+  if (!form.studentName) return ElMessage.warning('请输入学员姓名')
+  if (!form.courseTypeId) return ElMessage.warning('请选择课包')
   if (!isBoss.value) form.storeId = myStoreId.value
   saving.value = true
   try {
-    // 新增时不传课时和状态字段，由后端自动填充
-    const payload = { ...form }
-    if (!form.id) {
-      delete payload.totalLessons
-      delete payload.remainingLessons
-      delete payload.consumedLessons
-      delete payload.version
+    const payload = {
+      id: form.id,
+      storeId: form.storeId,
+      courseTypeId: form.courseTypeId,
+      totalLessons: form.totalLessons || undefined,
+      paidAmount: form.paidAmount,
+      remark: form.remark,
+      status: form.status,
+      params: {
+        studentName: form.studentName,
+        salesName: form.salesName || undefined
+      }
     }
     form.id ? await api.put('/course-orders', payload) : await api.post('/course-orders', payload)
     ElMessage.success('保存成功'); dialogVisible.value = false; loadData()
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || '保存失败')
   } finally { saving.value = false }
 }
 const handleDelete = (row) => {
@@ -161,4 +169,5 @@ onMounted(async () => { await loadRefs(); loadData() })
 <style scoped>
 .toolbar-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .cell-name { font-weight: 600; color: #303133; }
+.form-hint { font-size: 12px; color: #909399; margin-left: 8px; }
 </style>
