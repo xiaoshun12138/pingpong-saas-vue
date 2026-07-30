@@ -3,16 +3,17 @@
     <!-- 顶部：周导航 + 教练选择 -->
     <div class="sch-topbar">
       <div class="sch-date-nav">
-        <el-button @click="prevWeek" circle><el-icon><ArrowLeft /></el-icon></el-button>
+        <el-button @click="prevWeek" circle size="small"><el-icon><ArrowLeft /></el-icon></el-button>
         <span class="sch-date-text">{{ weekLabel }}</span>
-        <el-button @click="nextWeek" circle><el-icon><ArrowRight /></el-icon></el-button>
-        <el-button @click="goThisWeek" size="small">本周</el-button>
+        <el-button @click="nextWeek" circle size="small"><el-icon><ArrowRight /></el-icon></el-button>
+        <el-button @click="goThisWeek" size="small" plain>本周</el-button>
       </div>
       <div class="sch-topbar-right">
-        <el-select v-model="activeCoachId" placeholder="选择教练" style="width:160px" @change="loadSchedule">
+        <span class="sch-coach-label">教练</span>
+        <el-select v-model="activeCoachId" placeholder="选择教练" style="width:140px" @change="loadSchedule">
           <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
-        <el-tag type="info">{{ activeCoach?.name || '未选择' }} 的课表</el-tag>
+        <el-tag v-if="weekStats.total > 0" type="success" size="small" effect="plain">本周消课 {{ weekStats.total }} 节</el-tag>
       </div>
     </div>
 
@@ -22,23 +23,24 @@
         <table class="sch-grid" v-if="activeCoachId">
           <thead>
             <tr>
-              <th class="sch-time-col">时间段</th>
+              <th class="sch-time-col">时段</th>
               <th v-for="d in weekDays" :key="d.date" class="sch-day-col" :class="{ today: d.isToday }">
-                <div class="sch-day-name">{{ d.weekday }}</div>
+                <div class="sch-day-name">{{ d.weekday }}<span v-if="d.isToday" class="sch-today-dot"></span></div>
                 <div class="sch-day-date">{{ d.label }}</div>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="slot in timeSlots" :key="slot.key">
+            <tr v-for="slot in timeSlots" :key="slot.key" :class="{ 'sch-now-row': isCurrentSlot(slot) }">
               <td class="sch-time-col">
-                <span class="sch-time-label">{{ slot.label }}</span>
+                <span class="sch-time-label">{{ slot.startTime }}</span>
+                <span class="sch-time-end">{{ slot.endTime }}</span>
               </td>
               <td
                 v-for="d in weekDays"
                 :key="d.date"
                 class="sch-cell"
-                :class="{ 'sch-has-lesson': getBookings(d.date, slot.key).length > 0 }"
+                :class="{ 'sch-has-lesson': getBookings(d.date, slot.key).length > 0, 'sch-cell-today': d.isToday }"
                 @click="cellClick(d.date, slot)"
               >
                 <div class="sch-booking-list">
@@ -50,10 +52,11 @@
                     @click.stop="editBooking(d.date, slot, b)"
                   >
                     <span class="sch-student-name">{{ b.studentName }}</span>
-                    <el-icon v-if="i === 0" class="sch-booking-count">{{ getBookings(d.date, slot.key).length }}/6</el-icon>
+                    <span class="sch-lesson-info" v-if="b.courseTypeName">{{ b.courseTypeName }}</span>
+                    <span class="sch-remaining" v-if="b.remainingLessons !== undefined">余{{ b.remainingLessons }}</span>
                   </div>
                   <div v-if="getBookings(d.date, slot.key).length === 0" class="sch-empty">+</div>
-                  <div v-else-if="getBookings(d.date, slot.key).length < 6" class="sch-add-more">+ 添加</div>
+                  <div v-else-if="getBookings(d.date, slot.key).length < 6" class="sch-add-more">+</div>
                 </div>
               </td>
             </tr>
@@ -125,6 +128,23 @@ const coaches = ref([])
 const students = ref([])
 const activeCoachId = ref(null)
 const activeCoach = computed(() => coaches.value.find(c => c.id === activeCoachId.value) || null)
+
+// 本周统计
+const weekStats = computed(() => {
+  const total = scheduleData.value.length
+  const uniqueStudents = new Set(scheduleData.value.map(s => s.studentId)).size
+  return { total, uniqueStudents }
+})
+
+// 判断是否当前时间段（只对今天有效）
+const isCurrentSlot = (slot) => {
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const nowTime = `${hh}:${mm}`
+  return slot.startTime <= nowTime && nowTime < slot.endTime
+}
 
 // ===== 周日期 =====
 const weekOffset = ref(0)  // 0=本周, -1=上周, 1=下周
@@ -219,7 +239,7 @@ const editForm = ref({
 
 const resetEditForm = () => {
   editingBooking.value = false
-  editForm.value = { id: null, lessonContent: '', remark: '', date: '', dateLabel: '', startTime: '', endTime: '' }
+  editForm.value = { id: null, lessonContent: '', remark: '', date: '', dateLabel: '', startTime: '', endTime: '', studentId: null, courseOrderId: null }
   studentOrders.value = []
   rows.value = [{ studentId: null, courseOrderId: null }]
   rowOrders.value = []
@@ -295,7 +315,25 @@ const loadSchedule = async () => {
         all.push(s)
       })
     })
+    // 先赋值让页面渲染
     scheduleData.value = all
+    // 再异步批量填充课包信息（避免每条记录单独发请求导致渲染时没数据）
+    const orderIds = [...new Set(all.map(s => s.courseOrderId).filter(Boolean))]
+    if (orderIds.length > 0) {
+      const orderMap = {}
+      await Promise.all(orderIds.map(id =>
+        api.get(`/course-orders/${id}`).then(res => {
+          orderMap[id] = res.data
+        }).catch(() => {})
+      ))
+      all.forEach(s => {
+        if (s.courseOrderId && orderMap[s.courseOrderId]) {
+          s.courseTypeName = orderMap[s.courseOrderId].courseTypeName || ''
+          s.remainingLessons = orderMap[s.courseOrderId].remainingLessons
+        }
+      })
+      scheduleData.value = [...all]
+    }
   } catch {
     scheduleData.value = []
   } finally {
@@ -433,47 +471,60 @@ onMounted(async () => {
 .schedule-page { max-width: 100%; }
 
 .sch-topbar {
-  background: #fff; padding: 12px 20px; border-radius: 10px;
+  background: #fff; padding: 10px 16px; border-radius: 10px;
   display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 12px;
   flex-wrap: wrap; gap: 8px;
 }
-.sch-date-nav { display: flex; align-items: center; gap: 8px; }
-.sch-date-text { font-size: 16px; font-weight: 600; min-width: 200px; text-align: center; }
-.sch-topbar-right { display: flex; align-items: center; gap: 10px; }
+.sch-date-nav { display: flex; align-items: center; gap: 6px; }
+.sch-date-text { font-size: 15px; font-weight: 600; min-width: 180px; text-align: center; color: #303133; }
+.sch-topbar-right { display: flex; align-items: center; gap: 8px; }
+.sch-coach-label { font-size: 13px; color: #909399; }
 
 .sch-grid-wrap {
   background: #fff; border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden;
 }
-.sch-grid-scroll { overflow: auto; max-height: calc(100vh - 180px); }
+.sch-grid-scroll { overflow: auto; max-height: calc(100vh - 160px); }
 .sch-placeholder {
   display: flex; align-items: center; justify-content: center;
   height: 400px; color: #909399; font-size: 16px;
 }
 
-.sch-grid { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 900px; }
+.sch-grid { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 860px; }
 .sch-grid th {
-  background: #f5f7fa; padding: 8px 4px; border: 1px solid #ebeef5;
-  font-weight: 500; text-align: center;
+  background: #f5f7fa; padding: 6px 4px; border: 1px solid #ebeef5;
+  font-weight: 500; text-align: center; position: relative;
 }
 .sch-day-col.today { background: #ecf5ff; }
 .sch-day-col.today .sch-day-name { color: #409EFF; }
+.sch-today-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: #409EFF; margin-left: 4px; vertical-align: middle;
+}
 .sch-day-name { font-size: 13px; color: #303133; font-weight: 600; }
-.sch-day-date { font-size: 12px; color: #909399; margin-top: 2px; }
+.sch-day-date { font-size: 11px; color: #909399; margin-top: 1px; }
 
 .sch-grid td { border: 1px solid #ebeef5; vertical-align: top; }
 
 .sch-time-col {
-  width: 90px; text-align: center; background: #fafafa;
-  white-space: pre-line; font-size: 12px; color: #606266;
+  width: 70px; text-align: center; background: #fafafa;
+  font-size: 12px; color: #606266; padding: 4px 0;
 }
-.sch-time-label { display: block; padding: 10px 0; font-weight: 500; }
+.sch-time-label { display: block; font-weight: 600; color: #303133; }
+.sch-time-end { display: block; color: #c0c4cc; font-size: 11px; margin-top: 1px; }
+
+/* 当前时段行高亮 */
+.sch-now-row .sch-time-col {
+  background: #f0f9ff; border-left: 3px solid #409EFF;
+}
+.sch-now-row .sch-time-label { color: #409EFF; }
 
 .sch-cell {
-  height: 80px; padding: 2px; cursor: pointer; transition: background 0.15s;
+  height: 64px; padding: 2px; cursor: pointer; transition: background 0.12s;
   vertical-align: top;
 }
+.sch-cell-today { background: #fafcff; }
 .sch-cell:hover:not(.sch-has-lesson) { background: #f0f9ff; }
 .sch-has-lesson:hover { opacity: 0.95; }
 
@@ -483,27 +534,26 @@ onMounted(async () => {
 }
 
 .sch-booking {
-  border-radius: 4px; padding: 3px 6px;
-  display: flex; align-items: center; justify-content: space-between;
-  cursor: pointer; transition: transform 0.1s;
-  font-size: 12px; min-height: 22px;
+  border-radius: 4px; padding: 2px 6px;
+  display: flex; align-items: center; gap: 4px;
+  cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
+  font-size: 12px; min-height: 20px; line-height: 1.3;
 }
-.sch-booking:hover { transform: scale(1.02); }
-.sch-student-name { font-weight: 600; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sch-booking-count { font-size: 10px; color: #909399; }
+.sch-booking:hover { transform: scale(1.03); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.sch-student-name { font-weight: 600; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.sch-lesson-info { font-size: 10px; color: #606266; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.sch-remaining { font-size: 10px; color: #606266; font-weight: 600; flex-shrink: 0; background: rgba(255,255,255,0.7); border-radius: 2px; padding: 0 3px; }
 
 .sch-empty {
   display: flex; align-items: center; justify-content: center;
-  height: 100%; color: transparent; font-size: 20px; font-weight: 300;
+  height: 100%; color: transparent; font-size: 18px; font-weight: 300;
 }
-.sch-cell:hover .sch-empty { color: #c0c4cc; }
+.sch-cell:hover .sch-empty { color: #d0d0d0; }
 
 .sch-add-more {
   font-size: 11px; color: #409EFF; text-align: center;
-  padding: 2px; cursor: pointer;
+  padding: 1px; cursor: pointer; font-weight: 600;
 }
-
-.form-text { font-size: 14px; color: #303133; font-weight: 500; }
 
 .batch-info {
   display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;

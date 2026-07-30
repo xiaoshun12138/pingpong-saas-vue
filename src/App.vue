@@ -45,7 +45,6 @@
             <el-menu-item index="consumption-target"><el-icon><Timer /></el-icon><span>课消目标</span></el-menu-item>
             <el-menu-item index="lesson-ranking"><el-icon><TrendCharts /></el-icon><span>课消排名</span></el-menu-item>
             <el-menu-item index="performance-ranking"><el-icon><Trophy /></el-icon><span>业绩排名</span></el-menu-item>
-            <el-menu-item index="store-ranking"><el-icon><Shop /></el-icon><span>门店排名</span></el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="business">
@@ -374,5 +373,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC'
 .toolbar-left .el-select,
 .toolbar-left .el-input {
   width: 160px;
+}
+
+/* ===== el-table 横向滚动优化 ===== */
+/* 1. 表头与内容统一滚动容器，避免多层 DOM 不同步 */
+.el-table__body-wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch; /* iOS 平滑滚动 */
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain; /* 防止滚动传播到父级 */
+}
+/* 2. 让表头 wrapper 跟随 body-wrapper 同步滚动（Element Plus 内部已监听，这里提升合成层） */
+.el-table__header-wrapper {
+  will-change: transform;
+  transform: translateZ(0);
+}
+/* 3. 表格内容行也提升合成层，减少重绘延迟 */
+.el-table__body {
+  will-change: transform;
+  transform: translateZ(0);
+}
+/* 4. 隐藏默认横向滚动条样式，改为更细更不突兀 */
+.el-table__body-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+.el-table__body-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.el-table__body-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c4cc;
+  border-radius: 4px;
+}
+.el-table__body-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #909399;
 }
 </style>

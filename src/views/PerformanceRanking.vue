@@ -2,7 +2,7 @@
   <div class="page-card">
     <div class="page-toolbar">
       <div class="toolbar-left">
-        <el-select v-model="filterStoreId" placeholder="所有门店" clearable style="width:160px" @change="onFilterChange">
+        <el-select v-if="isBoss" v-model="filterStoreId" placeholder="所有门店" clearable style="width:160px" @change="onFilterChange">
           <el-option label="所有门店" :value="null" />
           <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>

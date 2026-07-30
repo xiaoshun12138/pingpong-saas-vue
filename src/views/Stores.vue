@@ -18,7 +18,7 @@
       <el-table-column prop="status" label="状态" width="80" align="center">
         <template #default="{row}"><el-tag :type="row.status===1?'success':'info'" size="small">{{ row.status===1?'营业':'停业' }}</el-tag></template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right" align="center">
+      <el-table-column label="操作" width="70" align="center" fixed="right">
         <template #default="{row}">
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>
           <el-tooltip content="删除" placement="top"><el-button link type="danger" :icon="Delete" @click="handleDelete(row)" /></el-tooltip>

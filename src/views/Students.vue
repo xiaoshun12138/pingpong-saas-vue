@@ -21,39 +21,82 @@
               <el-icon class="is-loading"><Loading /></el-icon> 加载课包中...
             </div>
             <div v-else-if="orderError[row.id]" class="expand-error">{{ orderError[row.id] }}</div>
-            <div v-else>
-              <p class="expand-summary">
-                <span>📦 <strong>{{ studentOrders[row.id]?.length || 0 }}</strong> 个课包</span>
-                <span v-if="studentOrders[row.id]" style="margin-left:16px">
-                  合计已付 <strong>¥{{ totalPaid(row.id) }}</strong>
-                </span>
-              </p>
-              <el-table :data="studentOrders[row.id]" stripe size="small" style="margin-top:6px"
-                        :show-header="studentOrders[row.id] && studentOrders[row.id].length > 0">
-                <el-table-column prop="courseTypeName" label="课包名称" min-width="110" />
-                <el-table-column prop="coachName" label="教练" min-width="80" />
-                <el-table-column prop="totalLessons" label="总课时" width="75" align="center" />
-                <el-table-column prop="remainingLessons" label="剩余课时" width="85" align="center">
-                  <template #default="{ row: o }">
-                    <el-tag :type="o.remainingLessons > 0 ? 'success' : 'danger'" size="small">
-                      {{ o.remainingLessons }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="consumedLessons" label="已消课时" width="85" align="center" />
-                <el-table-column prop="paidAmount" label="实付金额" width="110" align="right">
-                  <template #default="{ row: o }">¥{{ Number(o.paidAmount || 0).toLocaleString() }}</template>
-                </el-table-column>
-                <el-table-column prop="status" label="状态" width="75" align="center">
-                  <template #default="{ row: o }">
-                    <el-tag :type="o.status === 'active' ? 'success' : 'info'" size="small">
-                      {{ statusLabel(o.status) }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <div v-if="studentOrders[row.id] && studentOrders[row.id].length === 0" class="empty-orders">
-                暂无课包记录
+            <div v-else class="expand-content">
+              <!-- 左侧：学员信息 -->
+              <div class="expand-left-panel">
+                <div class="expand-avatar">
+                  <el-avatar :size="48" style="background:linear-gradient(135deg,#409EFF,#36cfc9);font-weight:700;font-size:20px;color:#fff">
+                    {{ row.name?.charAt(0) || '?' }}
+                  </el-avatar>
+                </div>
+                <div class="expand-student-name">{{ row.name }}</div>
+                <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" style="margin-top:4px">
+                  {{ row.status === 1 ? '在读' : '停课' }}
+                </el-tag>
+                <div class="expand-student-meta">
+                  <div v-if="row.phone" class="meta-row">📱 {{ row.phone }}</div>
+                  <div v-if="row.coachName" class="meta-row">👤 {{ row.coachName }}</div>
+                  <div class="meta-row">📅 {{ row.registeredAt ? row.registeredAt.substring(0,10) : '-' }}</div>
+                </div>
+                <div class="expand-stats-bar">
+                  <div class="expand-stat">
+                    <div class="expand-stat-num">{{ studentOrders[row.id]?.length || 0 }}</div>
+                    <div class="expand-stat-label">课包</div>
+                  </div>
+                  <div class="expand-stat">
+                    <div class="expand-stat-num" style="color:#67C23A">{{ row.totalRemainingLessons }}</div>
+                    <div class="expand-stat-label">剩余课时</div>
+                  </div>
+                  <div class="expand-stat">
+                    <div class="expand-stat-num" style="color:#F56C6C">¥{{ totalPaid(row.id) }}</div>
+                    <div class="expand-stat-label">累计已付</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右侧：课包列表 -->
+              <div class="expand-right-panel">
+                <div v-if="studentOrders[row.id] && studentOrders[row.id].length > 0" class="order-list">
+                  <div v-for="o in studentOrders[row.id]" :key="o.id" class="order-item"
+                       :class="{ 'order-inactive': o.status !== 'active' }">
+                    <div class="order-item-top">
+                      <span class="order-item-name">{{ o.courseTypeName }}</span>
+                      <el-tag :type="o.status === 'active' ? 'success' : 'info'" size="small" effect="plain">
+                        {{ statusLabel(o.status) }}
+                      </el-tag>
+                    </div>
+                    <div class="order-item-stats">
+                      <div class="order-stat">
+                        <span class="order-stat-label">教练</span>
+                        <span class="order-stat-val">{{ o.coachName || '-' }}</span>
+                      </div>
+                      <div class="order-stat">
+                        <span class="order-stat-label">总课时</span>
+                        <span class="order-stat-val">{{ o.totalLessons }}</span>
+                      </div>
+                      <div class="order-stat">
+                        <span class="order-stat-label">已消</span>
+                        <span class="order-stat-val">{{ o.consumedLessons }}</span>
+                      </div>
+                      <div class="order-stat">
+                        <span class="order-stat-label">剩余</span>
+                        <span class="order-stat-val" :style="{color: o.remainingLessons > 0 ? '#67C23A' : '#F56C6C', fontWeight: 600}">{{ o.remainingLessons }}</span>
+                      </div>
+                      <div class="order-stat">
+                        <span class="order-stat-label">实付</span>
+                        <span class="order-stat-val" style="color:#F56C6C;font-weight:600">¥{{ Number(o.paidAmount || 0).toLocaleString() }}</span>
+                      </div>
+                    </div>
+                    <!-- 课时进度条 -->
+                    <div class="order-progress">
+                      <div class="order-progress-bar"
+                           :style="{ width: o.totalLessons > 0 ? (o.consumedLessons / o.totalLessons * 100) + '%' : '0%',
+                                      background: o.remainingLessons === 0 ? '#F56C6C' : '#409EFF' }">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="empty-orders">暂无课包记录</div>
               </div>
             </div>
           </div>
@@ -65,13 +108,19 @@
       </el-table-column>
       <el-table-column prop="phone" label="手机号" width="125" />
       <el-table-column v-if="isBoss" prop="storeName" label="所属门店" min-width="100" />
-      <el-table-column prop="coachName" label="带教教练" min-width="80" />
+      <el-table-column prop="coachName" label="主管教练" min-width="80" />
       <el-table-column prop="totalRemainingLessons" label="剩余课时" width="85" align="center">
         <template #default="{row}">
           <el-tag :type="row.totalRemainingLessons > 0 ? 'success' : 'info'" size="small">{{ row.totalRemainingLessons }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="source" label="来源" min-width="80" show-overflow-tooltip />
+      <el-table-column prop="registeredAt" label="注册日期" min-width="110">
+        <template #default="{row}">{{ row.registeredAt ? row.registeredAt.substring(0,10) : '-' }}</template>
+      </el-table-column>
+      <el-table-column prop="lastLessonAt" label="最近上课" min-width="110">
+        <template #default="{row}">{{ row.lastLessonAt ? row.lastLessonAt.substring(0,10) : '-' }}</template>
+      </el-table-column>
       <el-table-column label="就读状态" width="110" align="center">
         <template #default="{row}">
           <el-switch :model-value="row.status === 1" :loading="togglingMap[row.id]"
@@ -80,11 +129,11 @@
                      active-color="#67C23A" inactive-color="#F56C6C" inline-prompt />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right" align="center">
+      <el-table-column label="操作" width="110" align="center" fixed="right">
         <template #default="{row}">
           <el-tooltip content="续费" placement="top"><el-button link type="success" :icon="Plus" @click="openRenew(row)" /></el-tooltip>
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>
-          <el-tooltip content="删除" placement="top"><el-button link type="danger" :icon="Delete" @click="handleDelete(row)" /></el-tooltip>
+          <el-tooltip v-if="isBoss" content="删除" placement="top"><el-button link type="danger" :icon="Delete" @click="handleDelete(row)" /></el-tooltip>
         </template>
       </el-table-column>
     </el-table>
@@ -103,7 +152,7 @@
             <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="带教教练">
+        <el-form-item label="主管教练">
           <el-select v-model="form.primaryCoachId" placeholder="选择教练" clearable style="width:100%">
             <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
@@ -131,8 +180,15 @@
           <el-input-number v-model="renewForm.paidAmount" :min="0" :precision="2" style="width:200px" />
           <span class="form-hint">元</span>
         </el-form-item>
-        <el-form-item label="销售姓名">
-          <el-input v-model="renewForm.salesName" placeholder="签单人姓名" />
+        <el-form-item label="跟进教练">
+          <el-select v-model="renewForm.coachId" placeholder="选择跟进教练" clearable style="width:100%">
+            <el-option v-for="s in renewCoachList" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="销售">
+          <el-select v-model="renewForm.salesId" placeholder="选择销售" clearable style="width:100%">
+            <el-option v-for="s in renewSalesList" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="renewForm.remark" placeholder="续费备注" />
@@ -186,7 +242,7 @@ const loadStores = async () => {
 }
 const loadCoaches = async () => {
   try {
-    const r = await api.get('/staff', { params: { role: 'coach', size: 9999 } })
+    const r = await api.get('/staff', { params: { size: 9999 } })
     coaches.value = r.data.records || []
   } catch {}
 }
@@ -230,7 +286,9 @@ const renewVisible = ref(false)
 const renewSaving = ref(false)
 const courseTypes = ref([])
 const renewStudent = reactive({ id: null, name: '' })
-const renewForm = reactive({ courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '' })
+const renewForm = reactive({ courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '' })
+const renewCoachList = ref([])
+const renewSalesList = ref([])
 
 const loadCourseTypes = async () => {
   try { const r = await api.get('/course-types', { params: { size: 999 } }); courseTypes.value = r.data.records } catch {}
@@ -239,13 +297,18 @@ const loadCourseTypes = async () => {
 const openRenew = (row) => {
   renewStudent.id = row.id
   renewStudent.name = row.name
+  // 从已加载的coaches数据中拆出教练和销售列表
+  renewCoachList.value = coaches.value.filter(s => s.role === 'coach' || s.role === 'shop_owner')
+  renewSalesList.value = coaches.value.filter(s => s.role === 'sales')
   resetRenew()
+  // 默认跟进教练 = 该学员的主管教练
+  renewForm.coachId = row.primaryCoachId || null
   renewVisible.value = true
   if (courseTypes.value.length === 0) loadCourseTypes()
 }
 
 const resetRenew = () => {
-  Object.assign(renewForm, { courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '' })
+  Object.assign(renewForm, { courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '' })
 }
 
 const onRenewCourseTypeChange = (ctId) => {
@@ -267,8 +330,9 @@ const handleRenew = async () => {
       courseTypeId: renewForm.courseTypeId,
       totalLessons: renewForm.totalLessons || undefined,
       paidAmount: renewForm.paidAmount,
-      remark: renewForm.remark,
-      params: { salesName: renewForm.salesName || undefined }
+      coachId: renewForm.coachId || undefined,
+      salesId: renewForm.salesId || undefined,
+      remark: renewForm.remark
     })
     ElMessage.success('续费成功')
     renewVisible.value = false
@@ -336,9 +400,117 @@ onMounted(async () => { await Promise.all([loadStores(), loadCoaches(), loadCour
 .cell-name { font-weight: 600; color: #303133; }
 .form-text { font-size: 14px; color: #303133; font-weight: 500; }
 .form-hint { font-size: 12px; color: #909399; margin-left: 8px; }
-.expand-wrapper { padding: 12px 20px; background: #fafafa; border-radius: 6px; }
-.expand-summary { margin: 0 0 8px; font-size: 13px; color: #606266; }
-.expand-loading, .expand-error, .empty-orders { color: #909399; font-size: 13px; padding: 12px 0; text-align: center; }
+.expand-wrapper { padding: 0; }
+.expand-loading, .expand-error, .empty-orders { color: #909399; font-size: 13px; padding: 24px 0; text-align: center; }
 .expand-error { color: #F56C6C; }
-.form-hint { font-size: 12px; color: #909399; margin-left: 8px; }
+
+/* 一体化布局：左学员 + 右课包 */
+.expand-content {
+  display: flex;
+  gap: 0;
+  background: #f8f9fb;
+}
+
+/* 左侧学员面板 */
+.expand-left-panel {
+  flex-shrink: 0;
+  width: 220px;
+  padding: 20px 16px;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.expand-avatar { margin-bottom: 8px; }
+.expand-student-name { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.expand-student-meta { margin-top: 12px; width: 100%; }
+.meta-row { font-size: 12px; color: #909399; line-height: 1.8; }
+
+.expand-stats-bar {
+  display: flex;
+  gap: 0;
+  margin-top: 16px;
+  width: 100%;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+.expand-stat { flex: 1; text-align: center; }
+.expand-stat-num { font-size: 17px; font-weight: 700; color: #303133; line-height: 1.2; }
+.expand-stat-label { font-size: 10px; color: #909399; margin-top: 2px; }
+
+/* 右侧课包列表 */
+.expand-right-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.order-item {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: all 0.2s;
+}
+.order-item:hover {
+  border-color: #c6e2ff;
+  box-shadow: 0 2px 8px rgba(64,158,255,0.1);
+}
+.order-item.order-inactive { opacity: 0.65; }
+
+.order-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.order-item-name { font-size: 14px; font-weight: 600; color: #303133; }
+
+.order-item-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+.order-stat { display: flex; flex-direction: column; gap: 2px; }
+.order-stat-label { font-size: 11px; color: #909399; }
+.order-stat-val { font-size: 13px; color: #303133; font-weight: 500; }
+
+.order-progress {
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.order-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* 响应式：窄屏时上下排列 */
+@media (max-width: 768px) {
+  .expand-content { flex-direction: column; }
+  .expand-left-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f0f0f0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    text-align: left;
+    gap: 12px;
+  }
+  .expand-avatar { margin-bottom: 0; }
+  .expand-student-meta { margin-top: 0; flex: 1; min-width: 120px; }
+  .expand-stats-bar { margin-top: 0; border-top: none; border-left: 1px solid #f0f0f0; padding-top: 0; padding-left: 12px; }
+}
 </style>

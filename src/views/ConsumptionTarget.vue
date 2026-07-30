@@ -1,14 +1,27 @@
 <template>
   <div class="page-card">
     <!-- 筛选栏 -->
-    <div class="page-toolbar">
+    <div class="page-toolbar" v-if="isBoss">
       <div class="toolbar-left">
         <el-select v-model="filterStoreId" placeholder="所有门店" clearable style="width:160px" @change="onFilterChange">
           <el-option label="所有门店" :value="null" />
           <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>
-        <el-select v-model="filterYear" placeholder="选择年份" style="width:120px;margin-left:8px" @change="onFilterChange">
+        <el-select v-model="filterYear" placeholder="选择年份" style="width:100px;margin-left:8px" @change="onFilterChange">
           <el-option v-for="y in yearOptions" :key="y" :label="y + '年'" :value="y" />
+        </el-select>
+        <el-select v-model="filterMonth" placeholder="选择月份" style="width:100px;margin-left:8px" @change="onFilterChange">
+          <el-option v-for="m in monthOptions" :key="m" :label="m + '月'" :value="m" />
+        </el-select>
+      </div>
+    </div>
+    <div class="page-toolbar" v-else>
+      <div class="toolbar-left">
+        <el-select v-model="filterYear" placeholder="选择年份" style="width:100px" @change="onFilterChange">
+          <el-option v-for="y in yearOptions" :key="y" :label="y + '年'" :value="y" />
+        </el-select>
+        <el-select v-model="filterMonth" placeholder="选择月份" style="width:100px;margin-left:8px" @change="onFilterChange">
+          <el-option v-for="m in monthOptions" :key="m" :label="m + '月'" :value="m" />
         </el-select>
       </div>
     </div>
@@ -52,18 +65,18 @@
 
     <!-- 折线图：消课金额走势 -->
     <div class="chart-card" style="margin-bottom:16px">
-      <div class="chart-title">{{ chartTitlePrefix }}各月课消金额走势</div>
+      <div class="chart-title">{{ isBoss ? chartTitlePrefix + '各月' : '各月' }}课消金额走势</div>
       <div ref="trendChartRef" class="line-chart"></div>
     </div>
 
-    <!-- 柱状图：各门店消课目标对比 -->
-    <div class="chart-card" style="margin-bottom:16px">
+    <!-- 柱状图：各门店消课目标对比（仅老板可见） -->
+    <div class="chart-card" v-if="isBoss" style="margin-bottom:16px">
       <div class="chart-title">各门店月度课消目标与完成</div>
       <div ref="storeChartRef" class="bar-chart"></div>
     </div>
 
-    <!-- 表格：各门店每月消课明细 -->
-    <div class="chart-card">
+    <!-- 表格：各门店每月消课明细（仅老板可见） -->
+    <div class="chart-card" v-if="isBoss">
       <div class="chart-title">各门店每月课消金额明细</div>
       <el-table :data="tableData" v-loading="loading" stripe size="small">
         <el-table-column prop="storeName" label="门店" min-width="120" fixed />
@@ -72,7 +85,7 @@
             <span>{{ formatMoney(row.monthData[m]) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="合计" width="110" align="right" fixed="right">
+        <el-table-column label="合计" width="110" align="right">
           <template #default="{row}">
             <span style="font-weight:600;color:#67C23A">{{ formatMoney(row.total) }}</span>
           </template>
@@ -94,7 +107,9 @@ const myStoreId = computed(() => userInfo.storeId)
 const stores = ref([])
 const filterStoreId = ref(null)
 const filterYear = ref(new Date().getFullYear())
+const filterMonth = ref(new Date().getMonth() + 1)
 const yearOptions = ref([2024, 2025, 2026])
+const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
 const loading = ref(false)
 
 // 目标与完成数据（消课金额）
@@ -244,7 +259,7 @@ const updateStoreChart = () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { year: filterYear.value }
+    const params = { year: filterYear.value, month: filterMonth.value }
     const sid = isBoss.value ? filterStoreId.value : myStoreId.value
     if (sid != null) params.storeId = sid
 

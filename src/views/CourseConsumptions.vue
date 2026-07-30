@@ -22,7 +22,7 @@
       <el-table-column prop="recordDate" label="上课日期" width="110" align="center" />
       <el-table-column prop="recordTime" label="上课时间" width="90" align="center" />
       <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
-      <el-table-column label="操作" width="100" fixed="right" align="center">
+      <el-table-column label="操作" width="70" align="center" fixed="right">
         <template #default="{row}">
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>
         </template>

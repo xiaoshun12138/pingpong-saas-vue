@@ -2,11 +2,11 @@
   <div class="page-card">
     <div class="page-toolbar">
       <div class="toolbar-left">
-        <el-select v-model="filterStoreId" placeholder="所有门店" clearable style="width:160px" @change="onFilterChange">
+        <el-select v-if="isBoss" v-model="filterStoreId" placeholder="所有门店" clearable style="width:160px" @change="onFilterChange">
           <el-option label="所有门店" :value="null" />
           <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>
-        <el-select v-model="sortBy" style="width:160px;margin-left:8px" @change="onFilterChange">
+        <el-select v-model="sortBy" style="width:160px" :style="{ marginLeft: isBoss ? '8px' : '0' }" @change="onFilterChange">
           <el-option label="按消课课时排序" value="lessons" />
           <el-option label="按消课金额排序" value="amount" />
         </el-select>

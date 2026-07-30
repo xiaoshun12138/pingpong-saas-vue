@@ -17,7 +17,7 @@
           </div>
           <div class="course-body">
             <div class="course-stat"><span class="label">总课时</span><span class="value">{{ ct.totalLessons }} 节</span></div>
-            <div class="course-stat"><span class="label">标价</span><span class="value price">¥{{ Number(ct.listPrice).toFixed(2) }}</span></div>
+            <div class="course-stat"><span class="label">价格</span><span class="value price">¥{{ Number(ct.listPrice).toFixed(2) }}</span></div>
           </div>
           <div class="course-actions">
             <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(ct)" /></el-tooltip>

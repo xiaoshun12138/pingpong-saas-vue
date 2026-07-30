@@ -1,5 +1,11 @@
 <template>
   <div class="dashboard">
+    <!-- 页面页头：店名 -->
+    <div class="dashboard-header" v-if="storeName">
+      <h2 class="header-title">{{ storeName }}</h2>
+      <span class="header-sub">{{ currentMonth }} · 经营概览</span>
+    </div>
+
     <!-- 顶部：核心指标卡片 -->
     <div class="stat-grid" :style="{ '--cols': isBoss ? 4 : 4 }">
       <div class="stat-card" v-for="card in cards" :key="card.label" :style="{ '--accent': card.color }">
@@ -7,6 +13,7 @@
         <div class="stat-body">
           <div class="stat-value">{{ card.value }}</div>
           <div class="stat-label">{{ card.label }}</div>
+          <div class="stat-sub" v-if="card.sub">{{ card.sub }}</div>
         </div>
         <div class="stat-bar"></div>
       </div>
@@ -107,7 +114,7 @@
       <div class="target-grid">
         <div class="target-card">
           <div class="target-header">
-            <span class="target-title">🎯 本月业绩目标</span>
+            <span class="target-title">🎯 {{ storeName }}本月业绩目标</span>
             <el-tag :type="salesRate >= 100 ? 'success' : 'warning'" size="small" effect="dark">
               {{ salesRate }}%
             </el-tag>
@@ -143,7 +150,7 @@
 
         <div class="target-card">
           <div class="target-header">
-            <span class="target-title">📚 本月课消目标</span>
+            <span class="target-title">📚 {{ storeName }}本月课消目标</span>
             <el-tag :type="lessonRate >= 100 ? 'success' : 'warning'" size="small" effect="dark">
               {{ lessonRate }}%
             </el-tag>
@@ -180,7 +187,7 @@
 
       <!-- 本月每日业绩走势折线图（全宽） -->
       <div class="chart-card">
-        <div class="chart-title"><span>📈 本月每日业绩走势</span></div>
+        <div class="chart-title"><span>📈 {{ storeName }}本月每日业绩走势</span></div>
         <div ref="trendChartRef" class="chart-canvas" style="height:360px"></div>
       </div>
 
@@ -240,6 +247,7 @@ const isBoss = computed(() => userInfo.role === 'boss')
 const isShopOwner = computed(() => userInfo.role === 'shop_owner')
 
 const data = ref({})
+const storeName = ref('')
 const storeData = ref([])
 const coachLessonRank = ref([])
 const coachSalesRank = ref([])
@@ -376,6 +384,7 @@ onMounted(async () => {
       api.get('/dashboard/store-performance')
     ])
     data.value = overviewRes.data
+    storeName.value = overviewRes.data.storeName || ''
     const d = overviewRes.data
 
     if (isBoss.value) {
@@ -397,11 +406,11 @@ onMounted(async () => {
         { label: '门店数', value: d.storeCount || 0, icon: 'Shop', color: '#409EFF' },
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
-        { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
-        { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
-        { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
-        { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
+        { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
+        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
+        { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
+        { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
       ]
       if (perfRes.data) {
         const sorted = [...perfRes.data].sort((a, b) => Number(b.salesAmount) - Number(a.salesAmount))
@@ -436,41 +445,37 @@ onMounted(async () => {
         console.error('排名加载失败', e)
       }
 
-      // 生成本月每日走势（用 store-performance 返回的当月数据模拟）
-      const now = new Date()
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-      const today = now.getDate()
-      const monthAmount = Number(d.monthNewOrderAmount || 0)
-      const dailyAvg = today > 0 ? monthAmount / today : 0
-      trendDays.value = Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1
-        if (day <= today) {
-          // 已过天数：用月总额均摊 + 随机波动模拟
-          const noise = (Math.sin(day * 1.7) + Math.cos(day * 2.3)) * 0.3 + 1
-          return { day: day + '日', amount: Math.round(dailyAvg * noise) }
-        }
-        return { day: day + '日', amount: 0 }
-      })
+      // 加载本月每日业绩走势（真实数据）
+      try {
+        const trendRes = await api.get('/dashboard/daily-trend')
+        const rows = trendRes.data || []
+        const dayMap = Object.fromEntries(rows.map(r => [r.day, Number(r.amount) || 0]))
+        const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+        trendDays.value = Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1
+          return { day: day + '日', amount: dayMap[day] || 0 }
+        })
+      } catch { trendDays.value = [] }
 
       cards.value = [
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
-        { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
-        { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
-        { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
-        { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
+        { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
+        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
+        { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
+        { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
       ]
     } else {
-      // ===== 教练视角：只显示基础指标卡片 =====
+      // ===== 教练视角 =====
       cards.value = [
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
-        { label: '活跃订单', value: (d.activeOrderCount || 0).toLocaleString(), icon: 'Tickets', color: '#F56C6C' },
-        { label: '本月消课', value: d.monthConsumptionCount || 0, icon: 'TrendCharts', color: '#909399' },
-        { label: '本月新单', value: d.monthNewOrderCount || 0, icon: 'Plus', color: '#9B59B6' },
-        { label: '本月业绩', value: '¥' + Number(d.monthNewOrderAmount || 0).toLocaleString(), icon: 'Money', color: '#1ABC9C' },
-        { label: '本月退款', value: d.monthRefundCount || 0, icon: 'WarningFilled', color: '#E74C3C' }
+        { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
+        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
+        { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
+        { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
       ]
     }
 
@@ -492,6 +497,25 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard { padding: 0; }
+
+.dashboard-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+.header-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+.header-sub {
+  font-size: 13px;
+  color: #909399;
+}
 
 .stat-grid {
   display: grid;
@@ -522,6 +546,7 @@ onBeforeUnmount(() => {
 }
 .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
 .stat-label { font-size: 13px; color: #909399; margin-top: 2px; }
+.stat-sub { font-size: 11px; color: #b0b0b0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-bar {
   position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
   background: var(--accent);

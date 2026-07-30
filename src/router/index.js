@@ -41,12 +41,6 @@ const routes = [
     meta: { title: '业绩排名' }
   },
   {
-    path: '/store-ranking',
-    name: 'store-ranking',
-    component: () => import('../views/StoreRanking.vue'),
-    meta: { title: '门店排名' }
-  },
-  {
     path: '/students',
     name: 'students',
     component: () => import('../views/Students.vue'),
