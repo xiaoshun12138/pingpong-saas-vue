@@ -80,8 +80,9 @@
                      active-color="#67C23A" inactive-color="#F56C6C" inline-prompt />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right" align="center">
+      <el-table-column label="操作" width="170" fixed="right" align="center">
         <template #default="{row}">
+          <el-tooltip content="续费" placement="top"><el-button link type="success" :icon="Plus" @click="openRenew(row)" /></el-tooltip>
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>
           <el-tooltip content="删除" placement="top"><el-button link type="danger" :icon="Delete" @click="handleDelete(row)" /></el-tooltip>
         </template>
@@ -112,13 +113,40 @@
       </el-form>
       <template #footer><el-button @click="dialogVisible=false">取消</el-button><el-button type="primary" @click="handleSave" :loading="saving">保存</el-button></template>
     </el-dialog>
+
+    <!-- 续费弹窗 -->
+    <el-dialog v-model="renewVisible" :title="`续费 - ${renewStudent.name}`" width="500px" @close="resetRenew">
+      <el-form :model="renewForm" label-width="90px">
+        <el-form-item label="学员"><span class="form-text">{{ renewStudent.name }}（ID: {{ renewStudent.id }}）</span></el-form-item>
+        <el-form-item label="课包" required>
+          <el-select v-model="renewForm.courseTypeId" placeholder="选择课包" style="width:100%" @change="onRenewCourseTypeChange">
+            <el-option v-for="ct in courseTypes" :key="ct.id" :label="`${ct.name}（${ct.totalLessons}课时 ¥${ct.listPrice}）`" :value="ct.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="实际课时">
+          <el-input-number v-model="renewForm.totalLessons" :min="1" :max="999" />
+          <span class="form-hint">默认为课包课时，可手动改</span>
+        </el-form-item>
+        <el-form-item label="实付金额" required>
+          <el-input-number v-model="renewForm.paidAmount" :min="0" :precision="2" style="width:200px" />
+          <span class="form-hint">元</span>
+        </el-form-item>
+        <el-form-item label="销售姓名">
+          <el-input v-model="renewForm.salesName" placeholder="签单人姓名" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="renewForm.remark" placeholder="续费备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer><el-button @click="renewVisible=false">取消</el-button><el-button type="primary" @click="handleRenew" :loading="renewSaving">确认续费</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Delete, Loading } from '@element-plus/icons-vue'
+import { Edit, Delete, Loading, Plus } from '@element-plus/icons-vue'
 import api from '../api'
 
 const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -197,6 +225,59 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
+// ===== 续费 =====
+const renewVisible = ref(false)
+const renewSaving = ref(false)
+const courseTypes = ref([])
+const renewStudent = reactive({ id: null, name: '' })
+const renewForm = reactive({ courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '' })
+
+const loadCourseTypes = async () => {
+  try { const r = await api.get('/course-types', { params: { size: 999 } }); courseTypes.value = r.data.records } catch {}
+}
+
+const openRenew = (row) => {
+  renewStudent.id = row.id
+  renewStudent.name = row.name
+  resetRenew()
+  renewVisible.value = true
+  if (courseTypes.value.length === 0) loadCourseTypes()
+}
+
+const resetRenew = () => {
+  Object.assign(renewForm, { courseTypeId: null, totalLessons: null, paidAmount: 0, salesName: '', remark: '' })
+}
+
+const onRenewCourseTypeChange = (ctId) => {
+  const ct = courseTypes.value.find(c => c.id === ctId)
+  if (ct) {
+    renewForm.paidAmount = ct.listPrice
+    renewForm.totalLessons = ct.totalLessons
+  }
+}
+
+const handleRenew = async () => {
+  if (!renewForm.courseTypeId) return ElMessage.warning('请选择课包')
+  if (!renewForm.paidAmount && renewForm.paidAmount !== 0) return ElMessage.warning('请填写实付金额')
+  renewSaving.value = true
+  try {
+    await api.post('/course-orders/renew', {
+      studentId: renewStudent.id,
+      storeId: myStoreId.value,
+      courseTypeId: renewForm.courseTypeId,
+      totalLessons: renewForm.totalLessons || undefined,
+      paidAmount: renewForm.paidAmount,
+      remark: renewForm.remark,
+      params: { salesName: renewForm.salesName || undefined }
+    })
+    ElMessage.success('续费成功')
+    renewVisible.value = false
+    loadData()
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || '续费失败')
+  } finally { renewSaving.value = false }
+}
+
 const handleExpand = async (row, isExpanded) => {
   // Element Plus expand-change 第二个参数是 boolean
   if (isExpanded) {
@@ -247,14 +328,17 @@ const onToggleStatus = (row) => {
   }).catch(() => false)
 }
 
-onMounted(async () => { await Promise.all([loadStores(), loadCoaches()]); loadData() })
+onMounted(async () => { await Promise.all([loadStores(), loadCoaches(), loadCourseTypes()]); loadData() })
 </script>
 
 <style scoped>
 .toolbar-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .cell-name { font-weight: 600; color: #303133; }
+.form-text { font-size: 14px; color: #303133; font-weight: 500; }
+.form-hint { font-size: 12px; color: #909399; margin-left: 8px; }
 .expand-wrapper { padding: 12px 20px; background: #fafafa; border-radius: 6px; }
 .expand-summary { margin: 0 0 8px; font-size: 13px; color: #606266; }
 .expand-loading, .expand-error, .empty-orders { color: #909399; font-size: 13px; padding: 12px 0; text-align: center; }
 .expand-error { color: #F56C6C; }
+.form-hint { font-size: 12px; color: #909399; margin-left: 8px; }
 </style>
