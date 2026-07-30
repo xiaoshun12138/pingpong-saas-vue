@@ -188,7 +188,7 @@
       <div class="rankings-section shop-owner-rankings">
         <div class="ranking-block">
           <div class="ranking-header">
-            <h3>🏆 本店教练课消排名</h3>
+            <h3>本店教练课消排名</h3>
             <el-tag size="small" type="success">本月</el-tag>
           </div>
           <div class="ranking-list">
@@ -203,7 +203,7 @@
         </div>
         <div class="ranking-block">
           <div class="ranking-header">
-            <h3>🔥 本店销售业绩排名</h3>
+            <h3>本店销售业绩排名</h3>
             <el-tag size="small" type="danger">本月</el-tag>
           </div>
           <div class="ranking-list">

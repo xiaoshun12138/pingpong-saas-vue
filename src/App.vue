@@ -56,7 +56,7 @@
             <el-menu-item index="course-orders"><el-icon><Tickets /></el-icon><span>订单管理</span></el-menu-item>
             <el-menu-item index="course-consumptions"><el-icon><TrendCharts /></el-icon><span>消课记录</span></el-menu-item>
             <el-menu-item index="refund-logs"><el-icon><RefreshLeft /></el-icon><span>退款记录</span></el-menu-item>
-            <el-menu-item index="schedule"><el-icon><Calendar /></el-icon><span>教练消课</span></el-menu-item>
+            <el-menu-item index="schedule"><el-icon><Calendar /></el-icon><span>教练排课</span></el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="config">
