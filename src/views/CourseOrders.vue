@@ -13,7 +13,6 @@
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增订单</el-button>
     </div>
     <el-table :data="tableData" v-loading="loading" stripe>
-      <el-table-column prop="id" label="ID" min-width="70" />
       <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="80" align="center">
         <template #default="{row}">

@@ -40,6 +40,9 @@
           <el-tag size="small" :type="row.staffId ? 'warning' : ''">{{ row.staffName || '全店' }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="createdAt" label="设定时间" width="160" align="center">
+        <template #default="{row}">{{ row.createdAt ? new Date(row.createdAt).getFullYear() + '年' + (new Date(row.createdAt).getMonth()+1) + '月' + new Date(row.createdAt).getDate() + '日' : '-' }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="80" align="center" fixed="right">
         <template #default="{row}">
           <el-tooltip content="编辑" placement="top"><el-button link type="primary" :icon="Edit" @click="openDialog(row)" /></el-tooltip>

@@ -1,9 +1,15 @@
 <template>
   <div class="dashboard">
-    <!-- 页面页头：店名 -->
-    <div class="dashboard-header" v-if="storeName">
-      <h2 class="header-title">{{ storeName }}</h2>
-      <span class="header-sub">{{ currentMonth }} · 经营概览</span>
+    <!-- 页面页头：店名 + 门店选择 -->
+    <div class="dashboard-header">
+      <div class="header-left">
+        <h2 class="header-title">{{ storeName }}</h2>
+        <span class="header-sub">{{ currentMonth }} · 经营概览</span>
+      </div>
+      <el-select v-if="isBoss" v-model="selectedStoreId" placeholder="全部门店" clearable style="width:180px" @change="onStoreChange">
+        <el-option label="全部门店" :value="null" />
+        <el-option v-for="s in stores" :key="s.id" :label="s.name" :value="s.id" />
+      </el-select>
     </div>
 
     <!-- 顶部：核心指标卡片 -->
@@ -41,13 +47,30 @@
           <el-table-column prop="salesAmount" label="本月销售额" width="140" align="right">
             <template #default="{row}"><span class="money">¥{{ Number(row.salesAmount).toLocaleString() }}</span></template>
           </el-table-column>
-          <el-table-column prop="orderCount" label="订单数" width="90" align="center" />
-          <el-table-column prop="lessonsConsumed" label="消课量" width="90" align="center" />
-          <el-table-column label="客单价" width="120" align="right">
+          <el-table-column prop="orderCount" label="订单数" width="80" align="center" />
+          <el-table-column prop="consumptionAmount" label="本月消课额" width="140" align="right">
+            <template #default="{row}"><span class="money">¥{{ Number(row.consumptionAmount || 0).toLocaleString() }}</span></template>
+          </el-table-column>
+          <el-table-column label="客单价" width="110" align="right">
             <template #default="{row}">
               <span v-if="row.orderCount > 0">¥{{ (Number(row.salesAmount) / row.orderCount).toFixed(0) }}</span>
               <span v-else>-</span>
             </template>
+          </el-table-column>
+          <el-table-column label="排名" width="70" align="center">
+            <template #default="{row}"><el-tag :type="row.rank <= 3 ? 'danger' : 'info'" size="small">No.{{ row.rank }}</el-tag></template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="table-card">
+        <div class="chart-title"><span>门店课消明细</span></div>
+        <el-table :data="storeConsumptionData" stripe size="small" style="width:100%">
+          <el-table-column prop="storeName" label="门店" min-width="120" />
+          <el-table-column prop="consumptionCount" label="消课次数" width="90" align="center" />
+          <el-table-column prop="lessonsConsumed" label="消课课时" width="90" align="center" />
+          <el-table-column prop="consumptionAmount" label="消课金额" width="140" align="right">
+            <template #default="{row}"><span class="money">¥{{ Number(row.consumptionAmount || 0).toLocaleString() }}</span></template>
           </el-table-column>
           <el-table-column label="排名" width="70" align="center">
             <template #default="{row}"><el-tag :type="row.rank <= 3 ? 'danger' : 'info'" size="small">No.{{ row.rank }}</el-tag></template>
@@ -249,6 +272,9 @@ const isShopOwner = computed(() => userInfo.role === 'shop_owner')
 const data = ref({})
 const storeName = ref('')
 const storeData = ref([])
+const storeConsumptionData = ref([])
+const stores = ref([])
+const selectedStoreId = ref(null)
 const coachLessonRank = ref([])
 const coachSalesRank = ref([])
 const salesRank = ref([])
@@ -290,7 +316,7 @@ const getRingStyle = (rate, color) => {
 }
 
 const initCharts = () => {
-  // 饼图（老板和店长都有）
+  // 饼图（老板视图：新报/续费/消课收入构成）
   if (pieChartRef.value) {
     pieChart = echarts.init(pieChartRef.value)
     const d = data.value
@@ -302,8 +328,9 @@ const initCharts = () => {
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
         label: { show: true, formatter: '{b}\n¥{c}' },
         data: [
-          { value: Number(d.monthNewOrderAmount || 0), name: '订单收入', itemStyle: { color: '#409EFF' } },
-          { value: Number(d.monthRefundAmount || 0), name: '退款金额', itemStyle: { color: '#F56C6C' } }
+          { value: Number(d.monthNewAmount || 0), name: '新报收入', itemStyle: { color: '#409EFF' } },
+          { value: Number(d.monthRenewAmount || 0), name: '续费收入', itemStyle: { color: '#67C23A' } },
+          { value: Number(d.monthConsumptionAmount || 0), name: '消课收入', itemStyle: { color: '#E6A23C' } }
         ]
       }]
     })
@@ -377,11 +404,20 @@ const trendDays = ref([])
 
 const handleResize = () => { barChart?.resize(); pieChart?.resize(); trendChart?.resize() }
 
-onMounted(async () => {
+const destroyCharts = () => {
+  barChart?.dispose(); barChart = null
+  pieChart?.dispose(); pieChart = null
+  trendChart?.dispose(); trendChart = null
+}
+
+// 核心加载函数，boss 切换门店时复用
+const loadDashboard = async (storeId) => {
+  destroyCharts()
   try {
+    const params = storeId != null ? { storeId } : {}
     const [overviewRes, perfRes] = await Promise.all([
-      api.get('/dashboard/overview'),
-      api.get('/dashboard/store-performance')
+      api.get('/dashboard/overview', { params }),
+      api.get('/dashboard/store-performance', { params })
     ])
     data.value = overviewRes.data
     storeName.value = overviewRes.data.storeName || ''
@@ -390,10 +426,11 @@ onMounted(async () => {
     if (isBoss.value) {
       // ===== 老板视角 =====
       try {
+        const rankParams = storeId != null ? { storeId, topN: 10 } : { topN: 10 }
         const [clr, csr, sr] = await Promise.all([
-          api.get('/dashboard/coach-lesson-ranking', { params: { topN: 10 } }),
-          api.get('/dashboard/coach-sales-ranking', { params: { topN: 10 } }),
-          api.get('/dashboard/sales-ranking', { params: { topN: 10 } })
+          api.get('/dashboard/coach-lesson-ranking', { params: rankParams }),
+          api.get('/dashboard/coach-sales-ranking', { params: rankParams }),
+          api.get('/dashboard/sales-ranking', { params: rankParams })
         ])
         coachLessonRank.value = clr.data || []
         coachSalesRank.value = csr.data || []
@@ -417,9 +454,17 @@ onMounted(async () => {
         sorted.forEach((s, i) => s.rank = i + 1)
         storeData.value = sorted
       }
+      // 门店课消明细
+      try {
+        const consumptionRes = await api.get('/dashboard/store-consumption', { params })
+        if (consumptionRes.data) {
+          const sorted = [...consumptionRes.data].sort((a, b) => Number(b.consumptionAmount) - Number(a.consumptionAmount))
+          sorted.forEach((s, i) => s.rank = i + 1)
+          storeConsumptionData.value = sorted
+        }
+      } catch { storeConsumptionData.value = [] }
     } else if (isShopOwner.value) {
       // ===== 店长视角 =====
-      // 加载目标数据（业绩 + 课消）
       try {
         const [salesTargetRes, lessonTargetRes] = await Promise.all([
           api.get('/target-dashboard/sales', { params: { year: new Date().getFullYear() } }),
@@ -433,7 +478,6 @@ onMounted(async () => {
         console.error('目标数据加载失败', e)
       }
 
-      // 加载本店排名
       try {
         const [clr, sr] = await Promise.all([
           api.get('/dashboard/coach-lesson-ranking', { params: { topN: 10 } }),
@@ -445,7 +489,6 @@ onMounted(async () => {
         console.error('排名加载失败', e)
       }
 
-      // 加载本月每日业绩走势（真实数据）
       try {
         const trendRes = await api.get('/dashboard/daily-trend')
         const rows = trendRes.data || []
@@ -481,17 +524,31 @@ onMounted(async () => {
 
     await nextTick()
     initCharts()
-    window.addEventListener('resize', handleResize)
   } catch (e) {
     console.error('Dashboard加载失败', e)
   }
+}
+
+const onStoreChange = () => {
+  loadDashboard(selectedStoreId.value)
+}
+
+onMounted(async () => {
+  // 加载门店列表（boss 下拉）
+  if (isBoss.value) {
+    try {
+      const res = await api.get('/stores', { params: { current: 1, size: 200 } })
+      // Page 对象取 records
+      stores.value = res.data?.records || []
+    } catch {}
+  }
+  await loadDashboard(null)
+  window.addEventListener('resize', handleResize)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
-  barChart?.dispose()
-  pieChart?.dispose()
-  trendChart?.dispose()
+  destroyCharts()
 })
 </script>
 
@@ -500,11 +557,17 @@ onBeforeUnmount(() => {
 
 .dashboard-header {
   display: flex;
-  align-items: baseline;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-bottom: 18px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e8e8e8;
+}
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 .header-title {
   margin: 0;

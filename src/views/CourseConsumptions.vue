@@ -13,11 +13,10 @@
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增消课</el-button>
     </div>
     <el-table :data="tableData" v-loading="loading" stripe>
-      <el-table-column prop="id" label="ID" min-width="70" />
+      <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column v-if="isBoss" prop="storeName" label="门店" min-width="100" />
       <el-table-column prop="studentName" label="学员" min-width="90" />
       <el-table-column prop="coachName" label="教练" min-width="90" />
-      <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column prop="lessons" label="消课课时" width="80" align="center" />
       <el-table-column prop="recordDate" label="上课日期" width="110" align="center" />
       <el-table-column prop="recordTime" label="上课时间" width="90" align="center" />
@@ -44,7 +43,7 @@
         </el-form-item>
         <el-form-item label="订单" required>
           <el-select v-model="form.courseOrderId" placeholder="选择订单" style="width:100%" filterable>
-            <el-option v-for="o in studentOrders" :key="o.id" :label="`${o.orderNo} 余${o.remainingLessons}课时`" :value="o.id" />
+            <el-option v-for="o in studentOrders.filter(x => x.remainingLessons > 0)" :key="o.id" :label="`${o.orderNo} 余${o.remainingLessons}课时`" :value="o.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="消课课时" required><el-input-number v-model="form.lessons" :min="1" /></el-form-item>

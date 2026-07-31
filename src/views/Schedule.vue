@@ -82,7 +82,7 @@
             <el-option v-for="s in availableStudents(idx)" :key="s.id" :label="`${s.name}（${s.phone || '-'}）`" :value="s.id" />
           </el-select>
           <el-select v-model="row.courseOrderId" placeholder="课包" style="width:220px" clearable :disabled="!row.studentId">
-            <el-option v-for="o in (rowOrders[idx] || [])" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
+            <el-option v-for="o in (rowOrders[idx] || []).filter(x => x.remainingLessons > 0)" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
           </el-select>
           <el-button v-if="rows.length > 1" @click="removeRow(idx)" :icon="Delete" circle size="small" type="danger" />
         </div>
@@ -94,7 +94,7 @@
           <el-option v-for="s in students" :key="s.id" :label="`${s.name}（${s.phone || '-'}）`" :value="s.id" />
         </el-select>
         <el-select v-model="editForm.courseOrderId" placeholder="课包" style="width:260px" clearable :disabled="!editForm.studentId">
-          <el-option v-for="o in studentOrders" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
+          <el-option v-for="o in studentOrders.filter(x => x.remainingLessons > 0)" :key="o.id" :label="`${o.courseTypeName || '课包'} - 余${o.remainingLessons}课时`" :value="o.id" />
         </el-select>
       </div>
 

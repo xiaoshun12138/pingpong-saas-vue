@@ -102,7 +102,6 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="id" label="ID" min-width="60" />
       <el-table-column prop="name" label="姓名" min-width="80">
         <template #default="{row}"><span class="cell-name">{{ row.name }}</span></template>
       </el-table-column>
