@@ -64,7 +64,7 @@
           <el-input v-model="form.studentName" placeholder="输入姓名，新学员自动创建" />
         </el-form-item>
         <el-form-item v-if="!form.id" label="手机号" required>
-          <el-input v-model="form.studentPhone" placeholder="学员手机号（必填）" maxlength="11" />
+          <el-input v-model="form.studentPhone" placeholder="学员联系方式（必填）" maxlength="11" />
         </el-form-item>
         <el-form-item label="课包" required>
           <el-select v-model="form.courseTypeId" placeholder="选择课包" style="width:100%" @change="onCourseTypeChange">
@@ -100,7 +100,7 @@
           <span v-if="form.status === 'refunded'" style="font-size:12px;color:#F56C6C;margin-left:8px">已退款订单不可修改状态</span>
         </el-form-item>
       </el-form>
-      <template #footer><el-button @click="dialogVisible=false">取消</el-button><el-button type="primary" @click="handleSave" :loading="saving">保存</el-button></template>
+      <template #footer><el-button @click="dialogVisible=false">取消</el-button><el-button type="primary" @click="handleSave" :loading="saving">确认</el-button></template>
     </el-dialog>
   </div>
 </template>
