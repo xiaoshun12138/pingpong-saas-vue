@@ -36,7 +36,7 @@
           <div ref="barChartRef" class="chart-canvas"></div>
         </div>
         <div class="chart-card chart-side">
-          <div class="chart-title"><span>本月营收构成</span></div>
+          <div class="chart-title"><span>本月业绩构成</span></div>
           <div ref="pieChartRef" class="chart-canvas"></div>
         </div>
       </div>
@@ -83,15 +83,21 @@
         <div class="ranking-block">
           <div class="ranking-header">
             <h3>教练课消排名</h3>
-            <el-tag size="small" type="success">本月消课课时</el-tag>
+            <el-tag size="small" type="success">消课课时</el-tag>
           </div>
           <div class="ranking-list">
             <div class="ranking-item" v-for="c in coachLessonRank" :key="c.staffId" :class="{ 'top3': c.rank <= 3 }">
               <span class="rank-badge" :class="'rank-' + c.rank">{{ c.rank }}</span>
-              <span class="rank-name">{{ c.staffName }}</span>
-              <span class="rank-store">{{ c.storeName }}</span>
-              <span class="rank-value">{{ c.value }} 课时</span>
-              <span class="rank-count">{{ c.count }} 次</span>
+              <div class="rank-info">
+                <div class="rank-line1">
+                  <span class="rank-name">{{ c.staffName }}</span>
+                  <span class="rank-value">{{ c.value }}课时</span>
+                </div>
+                <div class="rank-line2">
+                  <span class="rank-store">{{ c.storeName }}</span>
+                  <span class="rank-count">{{ c.count }}次</span>
+                </div>
+              </div>
             </div>
             <div v-if="coachLessonRank.length === 0" class="ranking-empty">本月暂无消课数据</div>
           </div>
@@ -99,15 +105,21 @@
         <div class="ranking-block">
           <div class="ranking-header">
             <h3>教练业绩排名</h3>
-            <el-tag size="small" type="warning">本月订单金额</el-tag>
+            <el-tag size="small" type="warning">订单金额</el-tag>
           </div>
           <div class="ranking-list">
             <div class="ranking-item" v-for="c in coachSalesRank" :key="c.staffId" :class="{ 'top3': c.rank <= 3 }">
               <span class="rank-badge" :class="'rank-' + c.rank">{{ c.rank }}</span>
-              <span class="rank-name">{{ c.staffName }}</span>
-              <span class="rank-store">{{ c.storeName }}</span>
-              <span class="rank-value money">¥{{ Number(c.value).toLocaleString() }}</span>
-              <span class="rank-count">{{ c.count }} 单</span>
+              <div class="rank-info">
+                <div class="rank-line1">
+                  <span class="rank-name">{{ c.staffName }}</span>
+                  <span class="rank-value money">¥{{ Number(c.value).toLocaleString() }}</span>
+                </div>
+                <div class="rank-line2">
+                  <span class="rank-store">{{ c.storeName }}</span>
+                  <span class="rank-count">{{ c.count }}单</span>
+                </div>
+              </div>
             </div>
             <div v-if="coachSalesRank.length === 0" class="ranking-empty">本月暂无教练业绩数据</div>
           </div>
@@ -115,15 +127,21 @@
         <div class="ranking-block">
           <div class="ranking-header">
             <h3>销售业绩排名</h3>
-            <el-tag size="small" type="danger">本月订单金额</el-tag>
+            <el-tag size="small" type="danger">订单金额</el-tag>
           </div>
           <div class="ranking-list">
             <div class="ranking-item" v-for="s in salesRank" :key="s.staffId" :class="{ 'top3': s.rank <= 3 }">
               <span class="rank-badge" :class="'rank-' + s.rank">{{ s.rank }}</span>
-              <span class="rank-name">{{ s.staffName }}</span>
-              <span class="rank-store">{{ s.storeName }}</span>
-              <span class="rank-value money">¥{{ Number(s.value).toLocaleString() }}</span>
-              <span class="rank-count">{{ s.count }} 单</span>
+              <div class="rank-info">
+                <div class="rank-line1">
+                  <span class="rank-name">{{ s.staffName }}</span>
+                  <span class="rank-value money">¥{{ Number(s.value).toLocaleString() }}</span>
+                </div>
+                <div class="rank-line2">
+                  <span class="rank-store">{{ s.storeName }}</span>
+                  <span class="rank-count">{{ s.count }}单</span>
+                </div>
+              </div>
             </div>
             <div v-if="salesRank.length === 0" class="ranking-empty">本月暂无销售业绩数据</div>
           </div>
@@ -219,14 +237,20 @@
         <div class="ranking-block">
           <div class="ranking-header">
             <h3>本店教练课消排名</h3>
-            <el-tag size="small" type="success">本月</el-tag>
+            <el-tag size="small" type="success">消课课时</el-tag>
           </div>
           <div class="ranking-list">
             <div class="ranking-item" v-for="c in coachLessonRank" :key="c.staffId" :class="{ 'top3': c.rank <= 3 }">
               <span class="rank-badge" :class="'rank-' + c.rank">{{ c.rank }}</span>
-              <span class="rank-name">{{ c.staffName }}</span>
-              <span class="rank-value">{{ c.value }} 课时</span>
-              <span class="rank-count">{{ c.count }} 次</span>
+              <div class="rank-info">
+                <div class="rank-line1">
+                  <span class="rank-name">{{ c.staffName }}</span>
+                  <span class="rank-value">{{ c.value }}课时</span>
+                </div>
+                <div class="rank-line2">
+                  <span class="rank-count">{{ c.count }}次</span>
+                </div>
+              </div>
             </div>
             <div v-if="coachLessonRank.length === 0" class="ranking-empty">本月暂无消课数据</div>
           </div>
@@ -234,14 +258,20 @@
         <div class="ranking-block">
           <div class="ranking-header">
             <h3>本店销售业绩排名</h3>
-            <el-tag size="small" type="danger">本月</el-tag>
+            <el-tag size="small" type="danger">订单金额</el-tag>
           </div>
           <div class="ranking-list">
             <div class="ranking-item" v-for="s in salesRank" :key="s.staffId" :class="{ 'top3': s.rank <= 3 }">
               <span class="rank-badge" :class="'rank-' + s.rank">{{ s.rank }}</span>
-              <span class="rank-name">{{ s.staffName }}</span>
-              <span class="rank-value money">¥{{ Number(s.value).toLocaleString() }}</span>
-              <span class="rank-count">{{ s.count }} 单</span>
+              <div class="rank-info">
+                <div class="rank-line1">
+                  <span class="rank-name">{{ s.staffName }}</span>
+                  <span class="rank-value money">¥{{ Number(s.value).toLocaleString() }}</span>
+                </div>
+                <div class="rank-line2">
+                  <span class="rank-count">{{ s.count }}单</span>
+                </div>
+              </div>
             </div>
             <div v-if="salesRank.length === 0" class="ranking-empty">本月暂无销售数据</div>
           </div>
@@ -329,8 +359,7 @@ const initCharts = () => {
         label: { show: true, formatter: '{b}\n¥{c}' },
         data: [
           { value: Number(d.monthNewAmount || 0), name: '新报收入', itemStyle: { color: '#409EFF' } },
-          { value: Number(d.monthRenewAmount || 0), name: '续费收入', itemStyle: { color: '#67C23A' } },
-          { value: Number(d.monthConsumptionAmount || 0), name: '消课收入', itemStyle: { color: '#E6A23C' } }
+          { value: Number(d.monthRenewAmount || 0), name: '续费收入', itemStyle: { color: '#67C23A' } }
         ]
       }]
     })
@@ -444,7 +473,7 @@ const loadDashboard = async (storeId) => {
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
         { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
-        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月课消', value: '¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), sub: formatCount(d.monthConsumptionCount) + ' 次消课', icon: 'TrendCharts', color: '#909399' },
         { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
         { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
         { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
@@ -504,7 +533,7 @@ const loadDashboard = async (storeId) => {
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
         { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
-        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月课消', value: '¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), sub: formatCount(d.monthConsumptionCount) + ' 次消课', icon: 'TrendCharts', color: '#909399' },
         { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
         { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
         { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
@@ -515,7 +544,7 @@ const loadDashboard = async (storeId) => {
         { label: '员工数', value: d.staffCount || 0, icon: 'User', color: '#67C23A' },
         { label: '学员总数', value: (d.studentCount || 0).toLocaleString(), icon: 'Reading', color: '#E6A23C' },
         { label: '活跃学员', value: (d.activeStudentCount || 0).toLocaleString(), icon: 'UserFilled', color: '#F56C6C' },
-        { label: '本月消课', value: formatCount(d.monthConsumptionCount), sub: '消课额 ¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), icon: 'TrendCharts', color: '#909399' },
+        { label: '本月课消', value: '¥' + Number(d.monthConsumptionAmount || 0).toLocaleString(), sub: formatCount(d.monthConsumptionCount) + ' 次消课', icon: 'TrendCharts', color: '#909399' },
         { label: '本月新报', value: formatCount(d.monthNewCount), sub: '金额 ¥' + Number(d.monthNewAmount || 0).toLocaleString(), icon: 'Plus', color: '#9B59B6' },
         { label: '本月续费', value: formatCount(d.monthRenewCount), sub: '金额 ¥' + Number(d.monthRenewAmount || 0).toLocaleString(), icon: 'Refresh', color: '#1ABC9C' },
         { label: '本月退款', value: formatCount(d.monthRefundCount), sub: '退款额 ¥' + Number(d.monthRefundAmount || 0).toLocaleString(), icon: 'WarningFilled', color: '#E74C3C' }
@@ -669,8 +698,8 @@ onBeforeUnmount(() => {
 }
 .ranking-list { display: flex; flex-direction: column; gap: 8px; }
 .ranking-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
+  display: flex; align-items: stretch; gap: 10px;
+  padding: 8px 10px;
   border-radius: 8px;
   background: #fafafa;
   transition: background 0.15s;
@@ -678,32 +707,45 @@ onBeforeUnmount(() => {
 .ranking-item:hover { background: #eef2ff; }
 .ranking-item.top3 { background: linear-gradient(135deg, #fff9e6, #fff3cd); }
 .rank-badge {
-  width: 26px; height: 26px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700;
   background: #e5e7eb;
   color: #6b7280;
   flex-shrink: 0;
+  align-self: center;
 }
 .rank-badge.rank-1 { background: linear-gradient(135deg, #F56C6C, #E74C3C); color: #fff; }
 .rank-badge.rank-2 { background: linear-gradient(135deg, #E6A23C, #F39C12); color: #fff; }
 .rank-badge.rank-3 { background: linear-gradient(135deg, #67C23A, #27AE60); color: #fff; }
+
+.rank-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.rank-line1 {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.rank-line2 {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
 .rank-name {
-  font-weight: 600; font-size: 14px; color: #303133;
-  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 600; font-size: 13px; color: #303133;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .rank-store {
-  font-size: 12px; color: #909399; flex-shrink: 0;
+  font-size: 11px; color: #b0b0b0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .rank-value {
-  font-size: 14px; font-weight: 600; color: #409EFF;
-  text-align: right; min-width: 80px; flex-shrink: 0;
+  font-size: 13px; font-weight: 700; color: #409EFF;
+  text-align: right; white-space: nowrap; flex-shrink: 0;
 }
 .rank-value.money { color: #F56C6C; }
 .rank-count {
-  font-size: 12px; color: #909399;
-  text-align: right; min-width: 40px; flex-shrink: 0;
+  font-size: 11px; color: #b0b0b0;
+  text-align: right; white-space: nowrap; flex-shrink: 0;
 }
 .ranking-empty {
   text-align: center; padding: 40px 0; color: #c0c4cc; font-size: 14px;

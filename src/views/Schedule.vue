@@ -1,19 +1,29 @@
 <template>
   <div class="schedule-page">
-    <!-- 顶部：周导航 + 教练选择 -->
+    <!-- 顶部工具栏 -->
     <div class="sch-topbar">
-      <div class="sch-date-nav">
-        <el-button @click="prevWeek" circle size="small"><el-icon><ArrowLeft /></el-icon></el-button>
-        <span class="sch-date-text">{{ weekLabel }}</span>
-        <el-button @click="nextWeek" circle size="small"><el-icon><ArrowRight /></el-icon></el-button>
-        <el-button @click="goThisWeek" size="small" plain>本周</el-button>
+      <div class="sch-topbar-left">
+        <div class="sch-date-nav">
+          <button class="sch-nav-btn" @click="prevWeek">‹</button>
+          <div class="sch-date-info">
+            <span class="sch-week-label">{{ weekLabel }}</span>
+            <span class="sch-date-range">{{ weekDays[0]?.label }} - {{ weekDays[6]?.label }}</span>
+          </div>
+          <button class="sch-nav-btn" @click="nextWeek">›</button>
+          <button class="sch-today-btn" @click="goThisWeek">回到本周</button>
+        </div>
       </div>
       <div class="sch-topbar-right">
-        <span class="sch-coach-label">教练</span>
-        <el-select v-model="activeCoachId" placeholder="选择教练" style="width:140px" @change="loadSchedule">
-          <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-        <el-tag v-if="weekStats.total > 0" type="success" size="small" effect="plain">本周消课 {{ weekStats.total }} 节</el-tag>
+        <div class="sch-coach-picker">
+          <span class="sch-picker-label">👤 教练</span>
+          <el-select v-model="activeCoachId" placeholder="选择教练" style="width:150px" @change="loadSchedule" size="small">
+            <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </div>
+        <div class="sch-week-stats" v-if="weekStats.total > 0">
+          <span class="sch-stat-num">{{ weekStats.total }}</span>
+          <span class="sch-stat-label">节消课</span>
+        </div>
       </div>
     </div>
 
@@ -23,46 +33,68 @@
         <table class="sch-grid" v-if="activeCoachId">
           <thead>
             <tr>
-              <th class="sch-time-col">时段</th>
+              <th class="sch-time-col">时间</th>
               <th v-for="d in weekDays" :key="d.date" class="sch-day-col" :class="{ today: d.isToday }">
-                <div class="sch-day-name">{{ d.weekday }}<span v-if="d.isToday" class="sch-today-dot"></span></div>
-                <div class="sch-day-date">{{ d.label }}</div>
+                <div class="sch-day-name">{{ d.weekday }}</div>
+                <div class="sch-day-date" :class="{ 'date-today': d.isToday }">{{ d.label }}</div>
+                <div v-if="d.isToday" class="sch-today-badge">今天</div>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="slot in timeSlots" :key="slot.key" :class="{ 'sch-now-row': isCurrentSlot(slot) }">
+            <tr v-for="slot in timeSlots" :key="slot.key" :class="{ 'sch-now-row': isCurrentSlot(slot) && !slot.isBreak, 'sch-break-row': slot.isBreak }">
               <td class="sch-time-col">
-                <span class="sch-time-label">{{ slot.startTime }}</span>
-                <span class="sch-time-end">{{ slot.endTime }}</span>
+                <template v-if="!slot.isBreak">
+                  <span class="sch-time-label">{{ slot.startTime }}</span>
+                  <span class="sch-time-end">~ {{ slot.endTime }}</span>
+                </template>
+                <template v-else>
+                  <span class="sch-time-label break-label">{{ slot.breakLabel }}</span>
+                </template>
               </td>
               <td
                 v-for="d in weekDays"
                 :key="d.date"
-                class="sch-cell"
-                :class="{ 'sch-has-lesson': getBookings(d.date, slot.key).length > 0, 'sch-cell-today': d.isToday }"
-                @click="cellClick(d.date, slot)"
+                :class="slot.isBreak ? 'sch-break-cell' : ['sch-cell', { 'sch-cell-today': d.isToday, 'sch-has-lesson': getBookings(d.date, slot.key).length > 0 }]"
+                @click="!slot.isBreak && cellClick(d.date, slot)"
               >
-                <div class="sch-booking-list">
-                  <div
-                    v-for="(b, i) in getBookings(d.date, slot.key)"
-                    :key="b.id || i"
-                    class="sch-booking"
-                    :style="{ background: b.color }"
-                    @click.stop="editBooking(d.date, slot, b)"
-                  >
-                    <span class="sch-student-name">{{ b.studentName }}</span>
-                    <span class="sch-lesson-info" v-if="b.courseTypeName">{{ b.courseTypeName }}</span>
-                    <span class="sch-remaining" v-if="b.remainingLessons !== undefined">余{{ b.remainingLessons }}</span>
+                <template v-if="slot.isBreak">
+                  <div class="sch-break-bar">{{ slot.breakLabel }}</div>
+                </template>
+                <template v-else>
+                  <div class="sch-booking-list">
+                    <div
+                      v-for="(b, i) in getBookings(d.date, slot.key)"
+                      :key="b.id || i"
+                      class="sch-booking"
+                      :style="{ '--booking-color': b.color, background: b.color }"
+                      @click.stop="editBooking(d.date, slot, b)"
+                    >
+                      <div class="sch-booking-left">
+                        <span class="sch-booking-bar"></span>
+                        <div class="sch-booking-info">
+                          <span class="sch-student-name">{{ b.studentName }}</span>
+                          <span class="sch-lesson-info" v-if="b.courseTypeName">{{ b.courseTypeName }}</span>
+                        </div>
+                      </div>
+                      <span class="sch-remaining" v-if="b.remainingLessons !== undefined">余{{ b.remainingLessons }}</span>
+                    </div>
+                    <div v-if="getBookings(d.date, slot.key).length === 0" class="sch-empty">
+                      <span class="sch-empty-plus">+</span>
+                    </div>
+                    <div v-else-if="getBookings(d.date, slot.key).length < 6" class="sch-add-more">
+                      <span>+ 添加</span>
+                    </div>
                   </div>
-                  <div v-if="getBookings(d.date, slot.key).length === 0" class="sch-empty">+</div>
-                  <div v-else-if="getBookings(d.date, slot.key).length < 6" class="sch-add-more">+</div>
-                </div>
+                </template>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-else class="sch-placeholder">👈 请选择一位教练查看周课表</div>
+        <div v-else class="sch-placeholder">
+          <div class="sch-placeholder-icon">🏸</div>
+          <p>请选择一位教练查看周课表</p>
+        </div>
       </div>
     </div>
 
@@ -147,11 +179,11 @@ const isCurrentSlot = (slot) => {
 }
 
 // ===== 周日期 =====
-const weekOffset = ref(0)  // 0=本周, -1=上周, 1=下周
+const weekOffset = ref(0)
 
 const weekDays = computed(() => {
   const today = new Date()
-  const dayOfWeek = today.getDay() || 7  // 周日=7
+  const dayOfWeek = today.getDay() || 7
   const monday = new Date(today)
   monday.setDate(today.getDate() - dayOfWeek + 1 + weekOffset.value * 7)
 
@@ -173,35 +205,49 @@ const weekDays = computed(() => {
 
 const weekLabel = computed(() => {
   if (weekDays.value.length < 2) return ''
-  const first = weekDays.value[0].label
-  const last = weekDays.value[6].label
-  const label = weekOffset.value === 0 ? '本周' : weekOffset.value === -1 ? '上周' : weekOffset.value === 1 ? '下周' : `第${weekOffset.value > 0 ? '+' : ''}${weekOffset.value}周`
-  return `${label}  ${first} - ${last}`
+  // 取周一的日期来确定月份和第几周
+  const monday = new Date(weekDays.value[0].date + 'T00:00:00')
+  const month = monday.getMonth() + 1
+  // 计算该月第几周：以该月第一天所在的那周为第1周（周一为一周起点）
+  const firstOfMonth = new Date(monday.getFullYear(), monday.getMonth(), 1)
+  const firstDayOfWeek = firstOfMonth.getDay() || 7 // 周日=7
+  const firstMonday = new Date(firstOfMonth)
+  firstMonday.setDate(1 - firstDayOfWeek + 1) // 该月第一个周一
+  if (firstMonday.getMonth() !== monday.getMonth()) {
+    // 第一个周一在上个月，往后推7天
+    firstMonday.setDate(firstMonday.getDate() + 7)
+  }
+  const weekNum = Math.floor((monday - firstMonday) / (7 * 24 * 60 * 60 * 1000)) + 1
+  const isThisWeek = weekOffset.value === 0
+  const monthCN = ['一','二','三','四','五','六','七','八','九','十','十一','十二'][month - 1]
+  return `${monthCN}月第${weekNum}周${isThisWeek ? '（本周）' : ''}`
 })
 
 const prevWeek = () => { weekOffset.value--; loadSchedule() }
 const nextWeek = () => { weekOffset.value++; loadSchedule() }
 const goThisWeek = () => { weekOffset.value = 0; loadSchedule() }
 
-// ===== 时间段（6个固定时段） =====
+// ===== 时间段（9:00-21:00，午休12:00-14:00，晚休17:00-18:00） =====
 const timeSlots = [
-  { key: '09:00-10:30', label: '09:00\n10:30', startTime: '09:00', endTime: '10:30' },
-  { key: '10:30-12:00', label: '10:30\n12:00', startTime: '10:30', endTime: '12:00' },
-  { key: '14:30-16:00', label: '14:30\n16:00', startTime: '14:30', endTime: '16:00' },
-  { key: '16:00-17:30', label: '16:00\n17:30', startTime: '16:00', endTime: '17:30' },
-  { key: '17:30-19:00', label: '17:30\n19:00', startTime: '17:30', endTime: '19:00' },
-  { key: '19:00-20:30', label: '19:00\n20:30', startTime: '19:00', endTime: '20:30' }
+  { key: '09:00-10:30', startTime: '09:00', endTime: '10:30' },
+  { key: '10:30-12:00', startTime: '10:30', endTime: '12:00' },
+  { key: '12:00-14:00', startTime: '12:00', endTime: '14:00', isBreak: true, breakLabel: '午休' },
+  { key: '14:00-15:30', startTime: '14:00', endTime: '15:30' },
+  { key: '15:30-17:00', startTime: '15:30', endTime: '17:00' },
+  { key: '17:00-18:00', startTime: '17:00', endTime: '18:00', isBreak: true, breakLabel: '休息' },
+  { key: '18:00-19:30', startTime: '18:00', endTime: '19:30' },
+  { key: '19:30-21:00', startTime: '19:30', endTime: '21:00' }
 ]
 
 // ===== 排课数据 =====
-const scheduleData = ref([])  // 一周的所有排课记录
+const scheduleData = ref([])
 const loading = ref(false)
 
-// 颜色调色板（按学员ID固定颜色）
+// 颜色调色板（按学员ID固定颜色）— 更鲜艳柔和的配色
 const palette = [
-  '#e8f5e9', '#e3f2fd', '#fff3e0', '#fce4ec', '#f3e5f5',
-  '#e0f7fa', '#e8eaf6', '#f1f8e9', '#fff8e1', '#efebe9',
-  '#e8f0fe', '#fef7e0', '#fde0f0', '#e0f2f1', '#f0f4c3'
+  '#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5', '#ff8b94',
+  '#a0e7e5', '#b4f8c8', '#fbe7c6', '#f38181', '#aa96da',
+  '#fcbad3', '#ffffd2', '#c7ceea', '#caffbf', '#a0ced9'
 ]
 let colorI = 0
 const colorMap = {}
@@ -223,13 +269,12 @@ const getBookings = (date, slotKey) => {
 // ===== 弹窗 =====
 const editVisible = ref(false)
 const saving = ref(false)
-const editingBooking = ref(false) // 新建=批量，编辑=单个
-const studentOrders = ref([])      // 编辑单个时用
+const editingBooking = ref(false)
+const studentOrders = ref([])
 const maxSlots = 6
 
-// 批量行 [{studentId, courseOrderId}]
 const rows = ref([{ studentId: null, courseOrderId: null }])
-const rowOrders = ref([])  // rows[0]={studentId, courseOrderId} → rowOrders[0]=[{...orders}]
+const rowOrders = ref([])
 
 const editForm = ref({
   id: null,
@@ -257,7 +302,6 @@ const removeRow = (idx) => {
   rowOrders.value.splice(idx, 1)
 }
 
-// 已选的学员ID（防止重复选同一个人）
 const selectedStudentIds = computed(() => rows.value.map(r => r.studentId).filter(Boolean))
 
 const availableStudents = (skipIdx) => {
@@ -294,12 +338,9 @@ const loadSchedule = async () => {
   if (!activeCoachId.value) return
   loading.value = true
   try {
-    // 查询本周7天的排课：逐天查或一次查
-    // 后端支持 coachId + date 参数，我们查周一的日期让它返回全部（如果后端不支持范围）
-    // 实际后端是精确匹配 date，所以我们并行查7天
     const days = weekDays.value.map(d => d.date)
     const results = await Promise.all(
-      days.map(date => 
+      days.map(date =>
         api.get('/schedules', { params: { coachId: activeCoachId.value, date } })
            .catch(() => ({ data: { records: [] } }))
       )
@@ -309,15 +350,12 @@ const loadSchedule = async () => {
       const recs = r.data.records || r.data || []
       recs.forEach(s => {
         s.color = getColor(s.studentId)
-        // 填充学员名
         const stu = students.value.find(x => x.id === s.studentId)
         if (stu) s.studentName = stu.name
         all.push(s)
       })
     })
-    // 先赋值让页面渲染
     scheduleData.value = all
-    // 再异步批量填充课包信息（避免每条记录单独发请求导致渲染时没数据）
     const orderIds = [...new Set(all.map(s => s.courseOrderId).filter(Boolean))]
     if (orderIds.length > 0) {
       const orderMap = {}
@@ -374,9 +412,7 @@ const editBooking = (date, slot, booking) => {
     date, dateLabel: `${dayInfo.weekday} ${dayInfo.label}`,
     startTime: slot.startTime, endTime: slot.endTime
   }
-  // 编辑单个时，复用 loadStudentOrders 填充课包
   loadStudentOrders(booking.studentId)
-  // 把 studentId/courseOrderId 临时挂在 editForm 上给模板用
   editForm.value.studentId = booking.studentId
   editForm.value.courseOrderId = booking.courseOrderId
   editVisible.value = true
@@ -384,7 +420,6 @@ const editBooking = (date, slot, booking) => {
 
 const handleSave = async () => {
   if (editingBooking.value) {
-    // ===== 编辑单个 =====
     if (!editForm.value.studentId) { ElMessage.warning('请选择学员'); return }
     saving.value = true
     try {
@@ -409,7 +444,6 @@ const handleSave = async () => {
     return
   }
 
-  // ===== 批量消课 =====
   const validRows = rows.value.filter(r => r.studentId && r.courseOrderId)
   if (validRows.length === 0) { ElMessage.warning('请至少完善一条学员课包'); return }
 
@@ -458,7 +492,6 @@ const handleDelete = () => {
 }
 
 onMounted(async () => {
-  // 先加载学员和教练，再加载课表，否则课表里没名字
   await Promise.all([loadCoaches(), loadStudents()])
   if (coaches.value.length) {
     activeCoachId.value = coaches.value[0].id
@@ -470,91 +503,293 @@ onMounted(async () => {
 <style scoped>
 .schedule-page { max-width: 100%; }
 
+/* ===== 顶部工具栏 ===== */
 .sch-topbar {
-  background: #fff; padding: 10px 16px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 12px;
-  flex-wrap: wrap; gap: 8px;
+  background: #fff;
+  padding: 14px 20px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.sch-date-nav { display: flex; align-items: center; gap: 6px; }
-.sch-date-text { font-size: 15px; font-weight: 600; min-width: 180px; text-align: center; color: #303133; }
-.sch-topbar-right { display: flex; align-items: center; gap: 8px; }
-.sch-coach-label { font-size: 13px; color: #909399; }
-
-.sch-grid-wrap {
-  background: #fff; border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden;
-}
-.sch-grid-scroll { overflow: auto; max-height: calc(100vh - 160px); }
-.sch-placeholder {
+.sch-topbar-left { display: flex; align-items: center; }
+.sch-date-nav { display: flex; align-items: center; gap: 8px; }
+.sch-nav-btn {
+  width: 32px; height: 32px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 18px;
+  color: #606266;
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  height: 400px; color: #909399; font-size: 16px;
+  transition: all 0.2s;
+}
+.sch-nav-btn:hover {
+  background: #ecf5ff;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+.sch-date-info {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 140px;
+}
+.sch-week-label {
+  font-size: 15px; font-weight: 700; color: #1a1a2e;
+  line-height: 1.3;
+}
+.sch-date-range {
+  font-size: 12px; color: #909399;
+}
+.sch-today-btn {
+  margin-left: 6px;
+  padding: 6px 14px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sch-today-btn:hover {
+  background: #409EFF;
+  border-color: #409EFF;
+  color: #fff;
+}
+.sch-topbar-right { display: flex; align-items: center; gap: 14px; }
+.sch-coach-picker { display: flex; align-items: center; gap: 8px; }
+.sch-picker-label { font-size: 13px; color: #606266; font-weight: 500; }
+.sch-week-stats {
+  display: flex; align-items: baseline; gap: 4px;
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+  padding: 6px 14px; border-radius: 10px;
+  border: 1px solid #c8e6c9;
+}
+.sch-stat-num {
+  font-size: 20px; font-weight: 800; color: #2e7d32;
+  line-height: 1;
+}
+.sch-stat-label {
+  font-size: 12px; color: #558b2f;
 }
 
-.sch-grid { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 860px; }
+/* ===== 课表网格容器 ===== */
+.sch-grid-wrap {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+.sch-grid-scroll { overflow: auto; max-height: calc(100vh - 170px); }
+
+.sch-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 400px; color: #909399; font-size: 15px;
+}
+.sch-placeholder-icon { font-size: 48px; margin-bottom: 12px; }
+
+/* ===== 表格 ===== */
+.sch-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 860px;
+}
 .sch-grid th {
-  background: #f5f7fa; padding: 6px 4px; border: 1px solid #ebeef5;
-  font-weight: 500; text-align: center; position: relative;
+  background: linear-gradient(180deg, #f8f9fb, #f0f2f5);
+  padding: 10px 4px;
+  border-bottom: 2px solid #e4e7ed;
+  border-right: 1px solid #ebeef5;
+  font-weight: 500;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
-.sch-day-col.today { background: #ecf5ff; }
-.sch-day-col.today .sch-day-name { color: #409EFF; }
-.sch-today-dot {
-  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-  background: #409EFF; margin-left: 4px; vertical-align: middle;
-}
-.sch-day-name { font-size: 13px; color: #303133; font-weight: 600; }
-.sch-day-date { font-size: 11px; color: #909399; margin-top: 1px; }
-
-.sch-grid td { border: 1px solid #ebeef5; vertical-align: top; }
-
 .sch-time-col {
-  width: 70px; text-align: center; background: #fafafa;
-  font-size: 12px; color: #606266; padding: 4px 0;
+  width: 76px;
+  background: #fafbfc !important;
+  border-right: 2px solid #ebeef5;
 }
-.sch-time-label { display: block; font-weight: 600; color: #303133; }
-.sch-time-end { display: block; color: #c0c4cc; font-size: 11px; margin-top: 1px; }
+.sch-day-col { position: relative; }
+.sch-day-col.today {
+  background: linear-gradient(180deg, #ecf5ff, #e8f4ff);
+}
+.sch-day-col.today .sch-day-name { color: #409EFF; }
+.sch-day-name {
+  font-size: 13px; color: #303133; font-weight: 600;
+  line-height: 1.4;
+}
+.sch-day-date {
+  font-size: 12px; color: #909399; margin-top: 2px;
+}
+.sch-day-date.date-today {
+  color: #409EFF; font-weight: 700;
+}
+.sch-today-badge {
+  position: absolute; top: 2px; right: 4px;
+  font-size: 9px; color: #fff;
+  background: #409EFF;
+  padding: 1px 5px; border-radius: 4px;
+  line-height: 1.3;
+}
 
-/* 当前时段行高亮 */
+.sch-grid td { border-right: 1px solid #ebeef5; border-bottom: 1px solid #ebeef5; vertical-align: top; }
+
+/* ===== 时间列 ===== */
+.sch-time-col {
+  text-align: center;
+  font-size: 12px; color: #606266;
+  padding: 6px 0;
+}
+.sch-time-label {
+  display: block; font-weight: 700; color: #303133;
+  font-size: 13px;
+}
+.sch-time-end {
+  display: block; color: #b0b0b0; font-size: 11px; margin-top: 2px;
+}
+.sch-time-label.break-label {
+  color: #c0c4cc; font-weight: 400; font-size: 12px;
+}
+
+/* ===== 当前时段行高亮 ===== */
 .sch-now-row .sch-time-col {
-  background: #f0f9ff; border-left: 3px solid #409EFF;
+  background: linear-gradient(180deg, #f0f9ff, #e6f7ff) !important;
+  border-left: 3px solid #409EFF;
 }
 .sch-now-row .sch-time-label { color: #409EFF; }
-
-.sch-cell {
-  height: 64px; padding: 2px; cursor: pointer; transition: background 0.12s;
-  vertical-align: top;
+.sch-now-row td:not(.sch-time-col):not(.sch-break-cell) {
+  background: rgba(64,158,255,0.02);
 }
-.sch-cell-today { background: #fafcff; }
-.sch-cell:hover:not(.sch-has-lesson) { background: #f0f9ff; }
-.sch-has-lesson:hover { opacity: 0.95; }
+
+/* ===== 休息时段行 ===== */
+.sch-break-row .sch-time-col {
+  background: #f5f5f5 !important;
+  color: #c0c4cc;
+}
+.sch-break-row .sch-time-label,
+.sch-break-row .sch-time-end { color: #c0c4cc; font-weight: 400; }
+.sch-break-cell {
+  background: repeating-linear-gradient(
+    135deg,
+    #f9f9f9,
+    #f9f9f9 4px,
+    #f5f5f5 4px,
+    #f5f5f5 8px
+  ) !important;
+  text-align: center;
+  vertical-align: middle;
+  cursor: default;
+  height: 32px;
+  border-bottom: 1px solid #eee !important;
+  border-right: 1px solid #ebeef5;
+}
+.sch-break-bar {
+  font-size: 11px; color: #c0c4cc;
+  letter-spacing: 3px;
+  font-weight: 400;
+}
+
+/* ===== 课程格子 ===== */
+.sch-cell {
+  height: 72px;
+  padding: 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+  vertical-align: top;
+  position: relative;
+}
+.sch-cell-today {
+  background: rgba(64,158,255,0.015);
+}
+.sch-cell:hover:not(.sch-has-lesson) {
+  background: #f0f9ff;
+}
+.sch-has-lesson:hover {
+  background: rgba(64,158,255,0.02);
+}
 
 .sch-booking-list {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 3px;
   height: 100%; overflow: hidden;
 }
 
+/* 课程块 */
 .sch-booking {
-  border-radius: 4px; padding: 2px 6px;
-  display: flex; align-items: center; gap: 4px;
-  cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
-  font-size: 12px; min-height: 20px; line-height: 1.3;
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 12px;
+  min-height: 24px;
+  line-height: 1.3;
+  border-left: 3px solid rgba(0,0,0,0.15);
 }
-.sch-booking:hover { transform: scale(1.03); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-.sch-student-name { font-weight: 600; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
-.sch-lesson-info { font-size: 10px; color: #606266; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.sch-remaining { font-size: 10px; color: #606266; font-weight: 600; flex-shrink: 0; background: rgba(255,255,255,0.7); border-radius: 2px; padding: 0 3px; }
+.sch-booking:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.sch-booking-left {
+  display: flex; align-items: center; gap: 4px;
+  overflow: hidden; flex: 1;
+}
+.sch-booking-info {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sch-student-name {
+  font-weight: 700; color: #303133;
+  font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sch-lesson-info {
+  font-size: 10px; color: #666;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sch-remaining {
+  font-size: 10px; color: #555;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.65);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
 
+/* 空格子 + 号 */
 .sch-empty {
   display: flex; align-items: center; justify-content: center;
-  height: 100%; color: transparent; font-size: 18px; font-weight: 300;
+  height: 100%;
 }
-.sch-cell:hover .sch-empty { color: #d0d0d0; }
+.sch-empty-plus {
+  font-size: 20px; font-weight: 300;
+  color: transparent;
+  transition: color 0.15s;
+}
+.sch-cell:hover .sch-empty-plus {
+  color: #c8d0d8;
+}
 
 .sch-add-more {
-  font-size: 11px; color: #409EFF; text-align: center;
-  padding: 1px; cursor: pointer; font-weight: 600;
+  font-size: 10px; color: #409EFF;
+  text-align: center;
+  padding: 2px;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.sch-add-more:hover {
+  background: rgba(64,158,255,0.08);
 }
 
+/* ===== 弹窗样式 ===== */
 .batch-info {
   display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
 }
@@ -570,4 +805,10 @@ onMounted(async () => {
 .edit-single {
   display: flex; gap: 10px; align-items: center; margin-bottom: 8px;
 }
+
+/* ===== 滚动条美化 ===== */
+.sch-grid-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.sch-grid-scroll::-webkit-scrollbar-track { background: transparent; }
+.sch-grid-scroll::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+.sch-grid-scroll::-webkit-scrollbar-thumb:hover { background: #b0b0b0; }
 </style>

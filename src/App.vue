@@ -56,6 +56,14 @@
             <el-menu-item index="course-consumptions"><el-icon><TrendCharts /></el-icon><span>消课记录</span></el-menu-item>
             <el-menu-item index="refund-logs"><el-icon><RefreshLeft /></el-icon><span>退款记录</span></el-menu-item>
             <el-menu-item index="schedule"><el-icon><Calendar /></el-icon><span>教练排课</span></el-menu-item>
+            <el-menu-item index="customer-pool"><el-icon><UserFilled /></el-icon><span>客户池</span></el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="team">
+            <template #title>
+              <el-icon><UserFilled /></el-icon><span>团队管理</span>
+            </template>
+            <el-menu-item index="staff"><el-icon><User /></el-icon><span>员工管理</span></el-menu-item>
           </el-sub-menu>
 
           <el-sub-menu index="config">
@@ -64,7 +72,6 @@
             </template>
             <el-menu-item index="course-types"><el-icon><Box /></el-icon><span>课包管理</span></el-menu-item>
             <el-menu-item v-if="userInfo.role === 'boss'" index="stores"><el-icon><Shop /></el-icon><span>门店管理</span></el-menu-item>
-            <el-menu-item v-if="userInfo.role === 'boss'" index="staff"><el-icon><User /></el-icon><span>员工管理</span></el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-scrollbar>

@@ -13,7 +13,7 @@
     </div>
 
     <el-table :data="tableData" v-loading="loading" stripe style="width:100%" row-key="id"
-              :expand-row-keys="expandedRows" @expand-change="handleExpand">
+              :expand-row-keys="expandedRows" @expand-change="handleExpand" @sort-change="onSortChange">
       <el-table-column type="expand">
         <template #default="{ row }">
           <div class="expand-wrapper">
@@ -34,9 +34,9 @@
                   {{ row.status === 1 ? '在读' : '停课' }}
                 </el-tag>
                 <div class="expand-student-meta">
-                  <div v-if="row.phone" class="meta-row">📱 {{ row.phone }}</div>
-                  <div v-if="row.coachName" class="meta-row">👤 {{ row.coachName }}</div>
-                  <div class="meta-row">📅 {{ row.registeredAt ? row.registeredAt.substring(0,10) : '-' }}</div>
+                  <div v-if="row.phone" class="meta-row">手机号：{{ row.phone }}</div>
+                  <div v-if="row.coachName" class="meta-row">主管教练：{{ row.coachName }}</div>
+                  <div class="meta-row">注册日期：{{ row.registeredAt ? row.registeredAt.substring(0,10) : '-' }}</div>
                 </div>
                 <div class="expand-stats-bar">
                   <div class="expand-stat">
@@ -108,7 +108,7 @@
       <el-table-column prop="phone" label="手机号" width="125" />
       <el-table-column v-if="isBoss" prop="storeName" label="所属门店" min-width="100" />
       <el-table-column prop="coachName" label="主管教练" min-width="80" />
-      <el-table-column prop="totalRemainingLessons" label="剩余课时" width="85" align="center">
+      <el-table-column prop="totalRemainingLessons" label="剩余课时" width="100" align="center" sortable="custom" :sort-orders="['descending', 'ascending']">
         <template #default="{row}">
           <el-tag :type="row.totalRemainingLessons > 0 ? 'success' : 'info'" size="small">{{ row.totalRemainingLessons }}</el-tag>
         </template>
@@ -214,6 +214,8 @@ const stores = ref([]), coaches = ref([])
 const filterStoreId = ref(null)
 const page = reactive({ current: 1, size: 10, total: 0 })
 const filters = reactive({ keyword: '' })
+const sortBy = ref(null)
+const sortOrder = ref(null)
 const form = reactive({ id: null, name: '', phone: '', age: 10, storeId: 1, primaryCoachId: null, source: '', status: 1 })
 
 // 展开行课包数据
@@ -249,7 +251,7 @@ const loadData = async () => {
   loading.value = true
   expandedRows.value = []
   try {
-    const res = await api.get('/students', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined } })
+    const res = await api.get('/students', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined, sortBy: sortBy.value || undefined, sortOrder: sortOrder.value || undefined } })
     const records = res.data.records
     if (stores.value.length > 0) {
       const storeMap = Object.fromEntries(stores.value.map(s => [s.id, s.name]))
@@ -263,6 +265,12 @@ const loadData = async () => {
   } finally { loading.value = false }
 }
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSortChange = ({ prop, order }) => {
+  sortBy.value = order ? prop : null
+  sortOrder.value = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : null
+  page.current = 1
+  loadData()
+}
 const openDialog = (row) => {
   const def = { id: null, name: '', phone: '', age: 10, storeId: myStoreId.value || 1, primaryCoachId: null, source: '', status: 1 }
   Object.assign(form, row || def)

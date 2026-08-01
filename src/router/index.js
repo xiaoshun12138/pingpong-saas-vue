@@ -71,6 +71,12 @@ const routes = [
     meta: { title: '教练排课' }
   },
   {
+    path: '/customer-pool',
+    name: 'customer-pool',
+    component: () => import('../views/CustomerPool.vue'),
+    meta: { title: '客户池' }
+  },
+  {
     path: '/course-types',
     name: 'course-types',
     component: () => import('../views/CourseTypes.vue'),
@@ -86,7 +92,7 @@ const routes = [
     path: '/staff',
     name: 'staff',
     component: () => import('../views/Staff.vue'),
-    meta: { title: '员工管理', roles: ['boss'] }
+    meta: { title: '员工管理' }
   }
 ]
 
