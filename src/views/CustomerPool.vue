@@ -9,11 +9,18 @@
           <span class="pool-stat-label">总学员</span>
         </div>
       </div>
-      <div class="pool-stat-card" :class="{ active: activeTab === 'need-schedule' }" @click="switchTab('need-schedule')">
+      <div class="pool-stat-card" :class="{ active: activeTab === 'suggest-schedule' }" @click="switchTab('suggest-schedule')">
         <div class="pool-stat-icon" style="background:linear-gradient(135deg,#E6A23C,#F39C12)"><span>⏰</span></div>
         <div class="pool-stat-info">
-          <span class="pool-stat-num">{{ summary.needSchedule }}</span>
-          <span class="pool-stat-label">需约课</span>
+          <span class="pool-stat-num">{{ summary.suggestSchedule }}</span>
+          <span class="pool-stat-label">建议约课</span>
+        </div>
+      </div>
+      <div class="pool-stat-card" :class="{ active: activeTab === 'suggest-renew' }" @click="switchTab('suggest-renew')">
+        <div class="pool-stat-icon" style="background:linear-gradient(135deg,#F56C6C,#ff8a65)"><span>💰</span></div>
+        <div class="pool-stat-info">
+          <span class="pool-stat-num">{{ summary.suggestRenew }}</span>
+          <span class="pool-stat-label">建议续费</span>
         </div>
       </div>
       <div class="pool-stat-card" :class="{ active: activeTab === 'active' }" @click="switchTab('active')">
@@ -59,16 +66,23 @@
       </div>
     </div>
 
-    <!-- 需约课学员提示条 -->
-    <div v-if="activeTab === 'need-schedule'" class="alert-bar">
+    <!-- 建议约课提示条 -->
+    <div v-if="activeTab === 'suggest-schedule'" class="alert-bar">
       <el-alert type="warning" :closable="false" show-icon>
-        <span>以下学员超过 {{ needDays }} 天未上课且有剩余课时，建议尽快安排约课</span>
+        <span>以下学员超过 {{ suggestScheduleWeeks }} 周未上课且有剩余课时，建议尽快安排约课</span>
       </el-alert>
     </div>
 
-    <!-- 主表格 -->
+    <!-- 建议续费提示条 -->
+    <div v-if="activeTab === 'suggest-renew'" class="alert-bar">
+      <el-alert type="error" :closable="false" show-icon>
+        <span>以下学员剩余课时不超过 {{ suggestRenewThreshold }} 节，建议跟进续费</span>
+      </el-alert>
+    </div>
+
+    <!-- 主表格（全部/在读/停课） -->
     <el-table
-      v-if="activeTab !== 'need-schedule'"
+      v-if="!isSuggestTab"
       :data="tableData"
       v-loading="loading"
       stripe
@@ -111,8 +125,8 @@
         <template #default="{row}">
           <div class="cell-last-lesson">
             <span class="cell-date">{{ formatDate(row.lastLessonAt) }}</span>
-            <span v-if="row.daysSinceLastLesson !== undefined && row.daysSinceLastLesson !== null" class="cell-days" :class="{ 'days-warn': row.daysSinceLastLesson >= 14, 'days-ok': row.daysSinceLastLesson < 7 }">
-              {{ row.daysSinceLastLesson }}天前
+            <span v-if="row.daysSinceLastLesson !== undefined && row.daysSinceLastLesson !== null" class="cell-days" :class="daysClass(row.daysSinceLastLesson)">
+              {{ formatWeeks(row.daysSinceLastLesson) }}
             </span>
           </div>
         </template>
@@ -124,10 +138,10 @@
       </el-table-column>
     </el-table>
 
-    <!-- 需约课学员表格 -->
+    <!-- 建议约课表格 -->
     <el-table
-      v-else
-      :data="needScheduleData"
+      v-else-if="activeTab === 'suggest-schedule'"
+      :data="suggestScheduleData"
       v-loading="loading"
       stripe
       style="width:100%"
@@ -164,7 +178,7 @@
           <div class="cell-last-lesson">
             <span class="cell-date">{{ row.lastLessonAt ? formatDate(row.lastLessonAt) : '从未上课' }}</span>
             <span v-if="row.lastLessonAt" class="cell-days days-warn">
-              {{ calcDays(row.lastLessonAt) }}天前
+              {{ formatWeeks(calcDays(row.lastLessonAt)) }}
             </span>
             <span v-else class="cell-days days-danger">需安排</span>
           </div>
@@ -177,8 +191,63 @@
       </el-table-column>
     </el-table>
 
+    <!-- 建议续费表格 -->
+    <el-table
+      v-else-if="activeTab === 'suggest-renew'"
+      :data="suggestRenewData"
+      v-loading="loading"
+      stripe
+      style="width:100%"
+      :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }"
+    >
+      <el-table-column prop="name" label="姓名" min-width="100">
+        <template #default="{row}">
+          <div class="cell-person">
+            <div class="cell-avatar" :style="{ background: avatarColor(row.id) }">{{ row.name?.charAt(0) || '?' }}</div>
+            <span class="cell-name">{{ row.name }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="phone" label="手机号" width="130">
+        <template #default="{row}"><span class="cell-phone">{{ row.phone || '-' }}</span></template>
+      </el-table-column>
+      <el-table-column v-if="isBoss" prop="storeName" label="门店" min-width="110" />
+      <el-table-column prop="coachName" label="教练" min-width="90">
+        <template #default="{row}">{{ row.coachName || '-' }}</template>
+      </el-table-column>
+      <el-table-column prop="remainingLessons" label="剩余课时" width="110" align="center">
+        <template #default="{row}">
+          <el-tag :type="row.remainingLessons === 0 ? 'danger' : 'warning'" size="small" effect="plain" round>{{ row.remainingLessons }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="totalPaid" label="累计缴费" width="120" align="right">
+        <template #default="{row}"><span class="cell-money">¥{{ Number(row.totalPaid).toLocaleString() }}</span></template>
+      </el-table-column>
+      <el-table-column prop="orderCount" label="订单数" width="80" align="center">
+        <template #default="{row}"><span class="cell-num">{{ row.orderCount }}</span></template>
+      </el-table-column>
+      <el-table-column prop="totalConsumedLessons" label="已消课时" width="100" align="center">
+        <template #default="{row}"><span class="cell-num">{{ row.totalConsumedLessons }}</span></template>
+      </el-table-column>
+      <el-table-column prop="lastLessonAt" label="最近上课" width="160" align="center">
+        <template #default="{row}">
+          <div class="cell-last-lesson">
+            <span class="cell-date">{{ row.lastLessonAt ? formatDate(row.lastLessonAt) : '从未上课' }}</span>
+            <span v-if="row.lastLessonAt" class="cell-days" :class="daysClass(calcDays(row.lastLessonAt))">
+              {{ formatWeeks(calcDays(row.lastLessonAt)) }}
+            </span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="100" align="center" fixed="right">
+        <template #default="{row}">
+          <el-button type="success" size="small" plain @click="goRenew(row)">去续费</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
     <el-pagination
-      v-if="activeTab !== 'need-schedule'"
+      v-if="!isSuggestTab"
       v-model:current-page="page.current"
       v-model:page-size="page.size"
       :total="page.total"
@@ -203,12 +272,17 @@ const isBoss = computed(() => userInfo.role === 'boss')
 
 const loading = ref(false)
 const tableData = ref([])
-const needScheduleData = ref([])
+const suggestScheduleData = ref([])
+const suggestRenewData = ref([])
 const stores = ref([])
 const activeTab = ref('all')
-const needDays = ref(14)
 
-const summary = reactive({ totalStudents: 0, needSchedule: 0, activeStudents: 0, inactiveStudents: 0 })
+// 建议约课：2 周（14 天）
+const suggestScheduleWeeks = ref(2)
+// 建议续费：剩余 ≤ 5 课时
+const suggestRenewThreshold = ref(5)
+
+const summary = reactive({ totalStudents: 0, suggestSchedule: 0, suggestRenew: 0, activeStudents: 0, inactiveStudents: 0 })
 
 const page = reactive({ current: 1, size: 20, total: 0 })
 const filters = reactive({
@@ -217,6 +291,8 @@ const filters = reactive({
   sortBy: 'totalPaid',
   sortOrder: 'desc'
 })
+
+const isSuggestTab = computed(() => activeTab.value === 'suggest-schedule' || activeTab.value === 'suggest-renew')
 
 const palette = [
   'linear-gradient(135deg,#a8e6cf,#88d8a8)',
@@ -250,6 +326,24 @@ const calcDays = (dt) => {
   } catch { return 0 }
 }
 
+// 天数 → 周描述
+const formatWeeks = (days) => {
+  if (days === undefined || days === null) return ''
+  if (days === 0) return '今天'
+  if (days < 7) return `${days}天前`
+  const weeks = Math.floor(days / 7)
+  const remainDays = days % 7
+  if (remainDays === 0) return `${weeks}周前`
+  return `${weeks}周${remainDays}天前`
+}
+
+const daysClass = (days) => {
+  if (days === undefined || days === null) return ''
+  if (days < 7) return 'days-ok'
+  if (days < 14) return 'days-warn'
+  return 'days-danger'
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -263,7 +357,6 @@ const loadData = async () => {
     }
     const res = await api.get('/customer-pool', { params })
     let records = res.data.records || []
-    // 过滤 Tab
     if (activeTab.value === 'active') {
       records = records.filter(r => r.status === 1)
     } else if (activeTab.value === 'inactive') {
@@ -275,33 +368,46 @@ const loadData = async () => {
   } finally { loading.value = false }
 }
 
-const loadNeedSchedule = async () => {
+const loadSuggestSchedule = async () => {
   loading.value = true
   try {
-    const params = { days: needDays.value }
+    const days = suggestScheduleWeeks.value * 7
+    const params = { days }
     if (isBoss.value && filters.storeId) params.storeId = filters.storeId
     if (!isBoss.value) params.storeId = userInfo.storeId
-    const res = await api.get('/customer-pool/need-schedule', { params })
-    needScheduleData.value = res.data || []
+    const res = await api.get('/customer-pool/suggest-schedule', { params })
+    suggestScheduleData.value = res.data || []
+  } finally { loading.value = false }
+}
+
+const loadSuggestRenew = async () => {
+  loading.value = true
+  try {
+    const params = { maxRemainingLessons: suggestRenewThreshold.value }
+    if (isBoss.value && filters.storeId) params.storeId = filters.storeId
+    if (!isBoss.value) params.storeId = userInfo.storeId
+    const res = await api.get('/customer-pool/suggest-renew', { params })
+    suggestRenewData.value = res.data || []
   } finally { loading.value = false }
 }
 
 const loadSummary = async () => {
   try {
+    const storeIdParam = isBoss.value ? (filters.storeId || undefined) : userInfo.storeId
     const params = { size: 9999 }
-    if (isBoss.value && filters.storeId) params.storeId = filters.storeId
-    if (!isBoss.value) params.storeId = userInfo.storeId
+    if (storeIdParam) params.storeId = storeIdParam
     const res = await api.get('/customer-pool', { params })
     const all = res.data.records || []
     summary.totalStudents = res.data.total
     summary.activeStudents = all.filter(s => s.status === 1).length
     summary.inactiveStudents = all.filter(s => s.status === 0).length
 
-    // 需约课数
-    const ns = await api.get('/customer-pool/need-schedule', {
-      params: { days: needDays.value, storeId: isBoss.value ? (filters.storeId || undefined) : userInfo.storeId }
-    })
-    summary.needSchedule = (ns.data || []).length
+    const days = suggestScheduleWeeks.value * 7
+    const ns = await api.get('/customer-pool/suggest-schedule', { params: { days, storeId: storeIdParam } })
+    summary.suggestSchedule = (ns.data || []).length
+
+    const nr = await api.get('/customer-pool/suggest-renew', { params: { maxRemainingLessons: suggestRenewThreshold.value, storeId: storeIdParam } })
+    summary.suggestRenew = (nr.data || []).length
   } catch {}
 }
 
@@ -314,8 +420,10 @@ const loadStores = async () => {
 
 const switchTab = (tab) => {
   activeTab.value = tab
-  if (tab === 'need-schedule') {
-    loadNeedSchedule()
+  if (tab === 'suggest-schedule') {
+    loadSuggestSchedule()
+  } else if (tab === 'suggest-renew') {
+    loadSuggestRenew()
   } else {
     loadData()
   }
@@ -323,8 +431,10 @@ const switchTab = (tab) => {
 
 const onFilterChange = () => {
   page.current = 1
-  if (activeTab.value === 'need-schedule') {
-    loadNeedSchedule()
+  if (activeTab.value === 'suggest-schedule') {
+    loadSuggestSchedule()
+  } else if (activeTab.value === 'suggest-renew') {
+    loadSuggestRenew()
   } else {
     loadData()
   }
@@ -360,6 +470,10 @@ const resetFilters = () => {
 
 const goSchedule = (row) => {
   router.push('/schedule')
+}
+
+const goRenew = (row) => {
+  router.push({ path: '/students', query: { renew: row.id } })
 }
 
 onMounted(async () => {
