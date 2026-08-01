@@ -63,6 +63,9 @@
         <el-form-item label="学员姓名" required>
           <el-input v-model="form.studentName" placeholder="输入姓名，新学员自动创建" />
         </el-form-item>
+        <el-form-item v-if="!form.id" label="手机号" required>
+          <el-input v-model="form.studentPhone" placeholder="学员手机号（必填）" maxlength="11" />
+        </el-form-item>
         <el-form-item label="课包" required>
           <el-select v-model="form.courseTypeId" placeholder="选择课包" style="width:100%" @change="onCourseTypeChange">
             <el-option v-for="ct in courseTypes" :key="ct.id" :label="`${ct.name}（${ct.totalLessons}课时）`" :value="ct.id" />
@@ -118,7 +121,7 @@ const page = reactive({ current: 1, size: 10, total: 0 })
 const showAmount = ref(false)
 const filterStoreId = ref(null)
 const filters = reactive({ keyword: '' })
-const form = reactive({ id: null, storeId: null, studentName: '', courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '', status: 'active' })
+const form = reactive({ id: null, storeId: null, studentName: '', studentPhone: '', courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '', status: 'active' })
 
 const loadRefs = async () => {
   try {
@@ -166,13 +169,14 @@ const openDialog = (row) => {
   if (row) {
     Object.assign(form, row)
   } else {
-    const def = { id: null, storeId: myStoreId.value || null, studentName: '', courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '', status: 'active' }
+    const def = { id: null, storeId: myStoreId.value || null, studentName: '', studentPhone: '', courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '', status: 'active' }
     Object.assign(form, def)
   }
   dialogVisible.value = true
 }
 const handleSave = async () => {
   if (!form.studentName) return ElMessage.warning('请输入学员姓名')
+  if (!form.id && !form.studentPhone) return ElMessage.warning('请输入学员手机号')
   if (!form.courseTypeId) return ElMessage.warning('请选择课包')
   if (!isBoss.value) form.storeId = myStoreId.value
   saving.value = true
@@ -188,7 +192,8 @@ const handleSave = async () => {
       remark: form.remark,
       status: form.status,
       params: {
-        studentName: form.studentName
+        studentName: form.studentName,
+        studentPhone: form.studentPhone
       }
     }
     form.id ? await api.put('/course-orders', payload) : await api.post('/course-orders', payload)
