@@ -8,11 +8,18 @@
         <el-input v-model="filters.keyword" placeholder="姓名 / 手机号" clearable style="width:220px" @keyup.enter="loadData">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
+        <el-select v-model="filters.status" placeholder="状态" clearable style="width:100px" @change="onFilterChange">
+          <el-option label="活跃" :value="1" />
+          <el-option label="停课" :value="0" />
+        </el-select>
+        <el-select v-model="filters.coachId" placeholder="教练" clearable style="width:120px" @change="onFilterChange">
+          <el-option v-for="c in coaches" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
     </div>
 
-    <el-table :data="tableData" v-loading="loading" stripe style="width:100%" row-key="id"
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe style="width:100%" row-key="id"
               :expand-row-keys="expandedRows" @expand-change="handleExpand" @sort-change="onSortChange">
       <el-table-column type="expand">
         <template #default="{ row }">
@@ -138,7 +145,7 @@
     </el-table>
 
     <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total"
-                   layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+                   :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
 
     <!-- 编辑弹窗（仅编辑已有学员常用信息，新增学员通过订单页面自动创建） -->
     <el-dialog v-model="dialogVisible" title="编辑学员" width="480px" class="nice-dialog">
@@ -213,7 +220,7 @@ const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisi
 const stores = ref([]), coaches = ref([])
 const filterStoreId = ref(null)
 const page = reactive({ current: 1, size: 10, total: 0 })
-const filters = reactive({ keyword: '' })
+const filters = reactive({ keyword: '', status: null, coachId: null })
 const sortBy = ref(null)
 const sortOrder = ref(null)
 const form = reactive({ id: null, name: '', phone: '', age: 10, storeId: 1, primaryCoachId: null, source: '', status: 1 })
@@ -251,7 +258,7 @@ const loadData = async () => {
   loading.value = true
   expandedRows.value = []
   try {
-    const res = await api.get('/students', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined, sortBy: sortBy.value || undefined, sortOrder: sortOrder.value || undefined } })
+    const res = await api.get('/students', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined, status: filters.status !== null ? filters.status : undefined, primaryCoachId: filters.coachId || undefined, sortBy: sortBy.value || undefined, sortOrder: sortOrder.value || undefined } })
     const records = res.data.records
     if (stores.value.length > 0) {
       const storeMap = Object.fromEntries(stores.value.map(s => [s.id, s.name]))
@@ -265,6 +272,7 @@ const loadData = async () => {
   } finally { loading.value = false }
 }
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 const onSortChange = ({ prop, order }) => {
   sortBy.value = order ? prop : null
   sortOrder.value = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : null

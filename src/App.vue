@@ -92,8 +92,8 @@
           <span class="user-info">
             <el-avatar :size="34" class="user-avatar">{{ userInfo.name?.charAt(0) || 'U' }}</el-avatar>
             <span class="user-name">{{ userInfo.name }}</span>
-            <el-tag :type="userInfo.role === 'boss' ? 'danger' : 'warning'" size="small" effect="dark">
-              {{ userInfo.role === 'boss' ? '老板' : '店长' }}
+            <el-tag :type="roleTagType" size="small" effect="dark">
+              {{ roleLabel }}
             </el-tag>
           </span>
           <template #dropdown>
@@ -125,6 +125,12 @@ const loginForm = reactive({ phone: '', password: '' })
 const loginLoading = ref(false)
 const collapsed = ref(false)
 const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
+
+// 角色标签
+const roleMap = { boss: '老板', shop_owner: '店长', coach: '教练', sales: '销售' }
+const roleTagTypeMap = { boss: 'danger', shop_owner: 'warning', coach: 'success', sales: 'primary' }
+const roleLabel = computed(() => roleMap[userInfo.value.role] || '未知')
+const roleTagType = computed(() => roleTagTypeMap[userInfo.value.role] || 'info')
 
 // 当前激活的菜单项（从路由推断）
 const activeMenu = computed(() => route.name || 'dashboard')

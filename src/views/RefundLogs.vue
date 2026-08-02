@@ -8,11 +8,12 @@
         <el-input v-model="filters.keyword" placeholder="学员 / 订单编号" clearable style="width:200px" @keyup.enter="loadData">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
+        <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="loadData" />
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增退款</el-button>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column v-if="isBoss" prop="storeName" label="门店" min-width="100" />
       <el-table-column prop="studentName" label="学员" min-width="90" />
@@ -32,7 +33,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
 
     <!-- 新增退款弹窗 -->
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑退款原因' : '新增退款'" width="560px" class="nice-dialog">
@@ -93,15 +94,16 @@
           </el-form-item>
         </template>
 
-        <!-- 步骤 4：输入退回课时 -->
+        <!-- 步骤 4：退回课时（自动匹配剩余全部，不允许修改） -->
         <el-form-item v-if="form.courseOrderId" label="退回课时" required>
           <el-input-number
             v-model="form.refundLessons"
             :min="1"
             :max="selectedOrder?.remainingLessons || 1"
+            :disabled="true"
             style="width:200px"
           />
-          <span style="margin-left:8px;font-size:12px;color:#909399">最多退 {{ selectedOrder?.remainingLessons || 0 }} 课时</span>
+          <span style="margin-left:8px;font-size:12px;color:#909399">将退回该课包全部剩余课时</span>
         </el-form-item>
 
         <!-- 步骤 5：自动计算退款金额（只读） -->
@@ -140,7 +142,7 @@ const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisi
 const stores = ref([])
 const filterStoreId = ref(null)
 const page = reactive({ current: 1, size: 10, total: 0 })
-const filters = reactive({ keyword: '' })
+const filters = reactive({ keyword: '', dateRange: null })
 
 // 新增退款表单
 const form = reactive({
@@ -185,7 +187,12 @@ const loadStores = async () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await api.get('/refund-logs', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined } })
+    const params = { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined }
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      params.startDate = filters.dateRange[0]
+      params.endDate = filters.dateRange[1]
+    }
+    const res = await api.get('/refund-logs', { params })
     const records = res.data.records
     if (stores.value.length > 0) {
       const smap = Object.fromEntries(stores.value.map(s => [s.id, s.name]))
@@ -249,6 +256,7 @@ const openDialog = (row) => {
 }
 
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 
 const handleSave = async () => {
   if (!form.id) {

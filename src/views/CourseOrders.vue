@@ -8,11 +8,12 @@
         <el-input v-model="filters.keyword" placeholder="学员姓名" clearable style="width:180px" @keyup.enter="loadData">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
+        <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="loadData" />
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增订单</el-button>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="80" align="center">
         <template #default="{row}">
@@ -51,7 +52,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
     <el-dialog v-model="dialogVisible" :title="form.id?'编辑订单':'新增订单'" width="560px">
       <el-alert v-if="!form.id" title="订单编号自动生成，填学员姓名即可下单" type="info" :closable="false" style="margin-bottom:12px" />
       <el-form :model="form" label-width="90px">
@@ -120,7 +121,7 @@ const stores = ref([]), courseTypes = ref([]), coachList = ref([]), salesList = 
 const page = reactive({ current: 1, size: 10, total: 0 })
 const showAmount = ref(false)
 const filterStoreId = ref(null)
-const filters = reactive({ keyword: '' })
+const filters = reactive({ keyword: '', dateRange: null })
 const form = reactive({ id: null, storeId: null, studentName: '', studentPhone: '', courseTypeId: null, totalLessons: null, paidAmount: 0, coachId: null, salesId: null, remark: '', status: 'active' })
 
 const loadRefs = async () => {
@@ -140,6 +141,10 @@ const loadData = async () => {
   loading.value = true
   try {
     const params = { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined }
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      params.startDate = filters.dateRange[0]
+      params.endDate = filters.dateRange[1]
+    }
     const res = await api.get('/course-orders', { params })
     const records = res.data.records
     if (stores.value.length > 0) {
@@ -208,6 +213,7 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 onMounted(async () => { await loadRefs(); loadData() })
 </script>
 

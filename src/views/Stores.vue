@@ -8,7 +8,7 @@
         <el-icon><Plus /></el-icon>&nbsp;新增门店
       </el-button>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe style="width:100%">
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="name" label="门店名称" min-width="160">
         <template #default="{row}"><span class="cell-name">{{ row.name }}</span></template>
@@ -25,7 +25,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
     <el-dialog v-model="dialogVisible" :title="form.id?'编辑门店':'新增门店'" width="500px" class="nice-dialog">
       <el-form :model="form" label-width="80px">
         <el-form-item label="名称" required><el-input v-model="form.name" placeholder="请输入门店名称" /></el-form-item>

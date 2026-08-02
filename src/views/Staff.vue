@@ -56,7 +56,7 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="tableData" v-loading="loading" stripe style="width:100%" :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }">
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe style="width:100%" :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }">
       <el-table-column prop="name" label="姓名" min-width="100" />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="role" label="角色" width="90" align="center">

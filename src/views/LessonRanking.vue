@@ -13,13 +13,17 @@
         <el-tooltip :content="displayAsc ? '当前升序，点击切换降序' : '当前降序，点击切换升序'" placement="top">
           <el-button :icon="displayAsc ? Top : Bottom" circle size="small" style="margin-left:8px;transition:transform 0.2s" @click="toggleOrder" />
         </el-tooltip>
+        <el-input v-model="filters.keyword" placeholder="教练姓名" clearable style="width:160px;margin-left:8px" @keyup.enter="loadData">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button type="primary" @click="loadData">查询</el-button>
       </div>
       <div class="toolbar-right">
         <el-statistic title="本月消课课时" :value="summary.lessons" />
         <el-statistic title="本月消课金额" :value="summary.amount" prefix="¥" style="margin-left:24px" />
       </div>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column prop="rank" label="排名" width="70" align="center">
         <template #default="{row}">
           <el-tag v-if="row.rank <= 3" :type="row.rank === 1 ? 'danger' : row.rank === 2 ? 'warning' : 'success'" size="small" effect="dark">{{ row.rank }}</el-tag>
@@ -36,13 +40,13 @@
       </el-table-column>
       <el-table-column prop="count" label="消课次数" width="90" align="center" />
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Top, Bottom } from '@element-plus/icons-vue'
+import { Top, Bottom, Search } from '@element-plus/icons-vue'
 import api from '../api'
 
 const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -53,6 +57,7 @@ const tableData = ref([])
 const loading = ref(false)
 const stores = ref([])
 const filterStoreId = ref(null)
+const filters = reactive({ keyword: '' })
 const sortBy = ref('lessons')
 const asc = ref(false)
 const displayAsc = ref(false) // 用于按钮图标显示，延迟更新避免抖动
@@ -69,6 +74,7 @@ const updateDisplayAsc = () => {
   displayAsc.value = asc.value
 }
 
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 const onFilterChange = () => {
   page.current = 1
   tableData.value = [] // 立即清空，避免新旧数据共存闪烁
@@ -78,7 +84,7 @@ const onFilterChange = () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { current: page.current, size: page.size, sortBy: sortBy.value, asc: asc.value }
+    const params = { current: page.current, size: page.size, sortBy: sortBy.value, asc: asc.value, keyword: filters.keyword || undefined }
     const sid = isBoss.value ? filterStoreId.value : myStoreId.value
     if (sid != null) params.storeId = sid
 

@@ -19,7 +19,7 @@
     </div>
 
     <!-- Table -->
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column type="index" label="#" width="55" />
       <el-table-column prop="storeName" label="门店" min-width="120" />
       <el-table-column prop="targetType" label="目标类型" width="100" align="center">
@@ -52,7 +52,7 @@
     </el-table>
 
     <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total"
-      layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+      :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
 
     <!-- Dialog -->
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑目标' : '新增目标'" width="520px">
@@ -145,6 +145,7 @@ const apiPath = () => tab.value === 'monthly' ? '/monthly-targets' : '/weekly-ta
 
 const onTabChange = () => { page.current = 1; loadData() }
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 
 const loadRefs = async () => {
   try {
@@ -167,17 +168,11 @@ const loadData = async () => {
   try {
     const params = { current: page.current, size: page.size }
     if (filterStoreId.value) params.storeId = filterStoreId.value
-    // MyBatis-Plus 会自动把 MonthlyTarget/WeeklyTarget 实体属性映射为查询条件
-    // 但 keyword 目前后端未实现，targetType 需要通过条件查询
+    if (filterType.value) params.targetType = filterType.value
     const res = await api.get(apiPath(), { params })
 
     let records = res.data?.records || res.data || []
-    const total = res.data?.total ?? records.length
-
-    // 前端按 targetType 过滤（后端 LambdaQueryWrapper 未接 targetType 参数）
-    if (filterType.value) {
-      records = records.filter(r => r.targetType === filterType.value)
-    }
+    page.total = res.data?.total ?? records.length
 
     // 填充门店/员工名称
     const smap = Object.fromEntries(stores.value.map(s => [s.id, s.name]))
@@ -187,7 +182,6 @@ const loadData = async () => {
     records.forEach(r => r.staffName = r.staffId ? (emap[r.staffId] || `员工${r.staffId}`) : null)
 
     tableData.value = records
-    page.total = filterType.value ? records.length : total // 前端过滤时total不准
   } finally {
     loading.value = false
   }

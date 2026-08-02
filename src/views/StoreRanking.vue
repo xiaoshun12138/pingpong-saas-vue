@@ -8,7 +8,7 @@
         </el-radio-group>
       </div>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column prop="rank" label="排名" width="70" align="center">
         <template #default="{row}">
           <el-tag v-if="row.rank <= 3" :type="row.rank === 1 ? 'danger' : row.rank === 2 ? 'warning' : 'success'" size="small" effect="dark">{{ row.rank }}</el-tag>
@@ -33,7 +33,7 @@
       </el-table-column>
       <el-table-column v-if="viewMode === 'lesson'" prop="lessonCount" label="消课次数" width="100" align="center" />
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
   </div>
 </template>
 
@@ -51,6 +51,7 @@ const onModeChange = () => {
   loadData()
 }
 
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 const loadData = async () => {
   loading.value = true
   try {

@@ -145,11 +145,7 @@ const calcRate = (actual, target) => {
   return Math.round((actual / target) * 100)
 }
 
-const formatMoney = (v) => {
-  if (!v) return '0'
-  if (v >= 10000) return (v / 10000).toFixed(1) + '万'
-  return Number(v).toLocaleString()
-}
+import { formatMoney } from '../utils/format'
 
 const initCharts = () => {
   if (yearChartRef.value) yearChart = echarts.init(yearChartRef.value)

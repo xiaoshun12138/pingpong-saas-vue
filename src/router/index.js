@@ -93,6 +93,12 @@ const routes = [
     name: 'staff',
     component: () => import('../views/Staff.vue'),
     meta: { title: '员工管理' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue'),
+    meta: { title: '页面不存在' }
   }
 ]
 

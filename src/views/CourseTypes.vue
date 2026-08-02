@@ -27,7 +27,7 @@
       </el-col>
     </el-row>
     <el-empty v-else description="暂无课包" />
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:8px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:8px;justify-content:flex-end" />
     <el-dialog v-model="dialogVisible" :title="form.id?'编辑课包':'新增课包'" width="480px" class="nice-dialog">
       <el-form :model="form" label-width="90px">
         <el-form-item label="课包名称" required><el-input v-model="form.name" placeholder="如：少儿启蒙 48课时" /></el-form-item>
@@ -50,6 +50,7 @@ const tableData = ref([]), loading = ref(false), saving = ref(false), dialogVisi
 const page = reactive({ current: 1, size: 12, total: 0 })
 const form = reactive({ id: null, name: '', totalLessons: 10, listPrice: 0, status: 1 })
 
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 const loadData = async () => {
   loading.value = true
   try { const res = await api.get('/course-types', { params: { current: page.current, size: page.size } }); tableData.value = res.data.records; page.total = res.data.total } finally { loading.value = false }

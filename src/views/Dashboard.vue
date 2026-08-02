@@ -329,11 +329,7 @@ const calcRate = (actual, target) => {
   if (!target || target <= 0) return 0
   return Math.round((actual / target) * 100)
 }
-const formatMoney = (v) => {
-  if (!v) return '0'
-  if (v >= 10000) return '¥' + (v / 10000).toFixed(1) + '万'
-  return '¥' + Number(v).toLocaleString()
-}
+import { formatMoney } from '../utils/format'
 const formatCount = (v) => {
   if (!v) return '0'
   return Number(v).toLocaleString()
@@ -369,7 +365,9 @@ const initCharts = () => {
     barChart = echarts.init(barChartRef.value)
     const names = storeData.value.map(s => s.storeName)
     const sales = storeData.value.map(s => Number(s.salesAmount))
-    const lessons = storeData.value.map(s => s.lessonsConsumed)
+    // 消课量从 storeConsumptionData 取，按门店名对齐
+    const consumptionMap = Object.fromEntries(storeConsumptionData.value.map(s => [s.storeName, s.lessonsConsumed || 0]))
+    const lessons = storeData.value.map(s => consumptionMap[s.storeName] || 0)
     barChart.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       legend: { data: ['销售额(元)', '消课量(课时)'], top: 5 },

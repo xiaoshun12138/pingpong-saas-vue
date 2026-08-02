@@ -72,6 +72,7 @@
       v-if="activeTab !== 'suggest-schedule'"
       :data="tableData"
       v-loading="loading"
+      empty-text="暂无数据"
       stripe
       style="width:100%"
       :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }"

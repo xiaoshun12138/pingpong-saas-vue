@@ -439,6 +439,9 @@ const loadSchedule = async () => {
 
     if (monthChanged) {
       scheduleData.value = []
+      // 重置颜色映射，避免跨月复用导致不同学员分到相同颜色
+      Object.keys(colorMap).forEach(k => delete colorMap[k])
+      colorI = 0
       loadedMonthOffset.value = currentMonth
     }
 

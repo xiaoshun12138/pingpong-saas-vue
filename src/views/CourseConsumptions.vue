@@ -8,11 +8,12 @@
         <el-input v-model="filters.keyword" placeholder="学员 / 教练 / 订单" clearable style="width:200px" @keyup.enter="loadData">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
+        <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="loadData" />
         <el-button type="primary" @click="loadData">查询</el-button>
       </div>
       <el-button type="primary" @click="openDialog()"><el-icon><Plus /></el-icon>&nbsp;新增消课</el-button>
     </div>
-    <el-table :data="tableData" v-loading="loading" stripe>
+    <el-table :data="tableData" empty-text="暂无数据" v-loading="loading" stripe>
       <el-table-column prop="orderNo" label="订单编号" min-width="160" show-overflow-tooltip />
       <el-table-column v-if="isBoss" prop="storeName" label="门店" min-width="100" />
       <el-table-column prop="studentName" label="学员" min-width="90" />
@@ -27,7 +28,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" layout="total, prev, pager, next" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination v-model:current-page="page.current" v-model:page-size="page.size" :total="page.total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @size-change="onSizeChange" @current-change="loadData" style="margin-top:16px;justify-content:flex-end" />
     <el-dialog v-model="dialogVisible" :title="form.id?'编辑消课（仅可修改备注/日期）':'新增消课'" width="500px">
       <el-alert v-if="!form.id" title="门店信息将根据订单自动填写，无需手动选择" type="info" :closable="false" style="margin-bottom:12px" />
       <el-form :model="form" label-width="90px">
@@ -73,7 +74,7 @@ const stores = ref([]), coaches = ref([]), students = ref([]), studentOrders = r
 const filterStoreId = ref(null)
 const page = reactive({ current: 1, size: 10, total: 0 })
 const today = new Date().toISOString().slice(0, 10)
-const filters = reactive({ keyword: '' })
+const filters = reactive({ keyword: '', dateRange: null })
 const form = reactive({ id: null, studentId: null, coachId: null, courseOrderId: null, lessons: 1, recordDate: today, recordTime: '14:00:00', remark: '' })
 
 const loadRefs = async () => {
@@ -98,7 +99,12 @@ const loadStudentOrders = async (studentId) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await api.get('/course-consumptions', { params: { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined } })
+    const params = { current: page.current, size: page.size, storeId: filterStoreId.value || undefined, keyword: filters.keyword || undefined }
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      params.startDate = filters.dateRange[0]
+      params.endDate = filters.dateRange[1]
+    }
+    const res = await api.get('/course-consumptions', { params })
     const records = res.data.records
     if (stores.value.length > 0) {
       const smap = Object.fromEntries(stores.value.map(s => [s.id, s.name]))
@@ -167,6 +173,7 @@ const handleSave = async () => {
   } finally { saving.value = false }
 }
 const onFilterChange = () => { page.current = 1; loadData() }
+const onSizeChange = (s) => { page.size = s; page.current = 1; loadData() }
 onMounted(async () => { await loadRefs(); loadData() })
 </script>
 
