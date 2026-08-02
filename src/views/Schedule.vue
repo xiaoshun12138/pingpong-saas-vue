@@ -184,7 +184,7 @@ const monthLabel = computed(() => {
 // ===== 月历日期 =====
 const allMonthDays = computed(() => {
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const y = now.getFullYear()
   const m = now.getMonth() + monthOffset.value
   const wdNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -204,7 +204,7 @@ const allMonthDays = computed(() => {
   const days = []
   const d = new Date(gridStart)
   while (d < gridEnd) {
-    const ds = d.toISOString().slice(0, 10)
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const dow = d.getDay() || 7
     days.push({
       date: ds,
@@ -351,11 +351,12 @@ const getColor = (studentId) => {
 }
 
 const getBookings = (date, slotKey) => {
-  const slotStart = slotKey.split('-')[0]
+  const [slotStart, slotEnd] = slotKey.split('-')
   return scheduleData.value.filter(s => {
     const sDate = typeof s.scheduleDate === 'string' ? s.scheduleDate : s.scheduleDate
     const sTime = (s.startTime || '').substring(0, 5)
-    return sDate === date && sTime === slotStart
+    // 匹配时间段区间：消课上课时间落在哪个时段就显示在哪个格子里
+    return sDate === date && sTime >= slotStart && sTime < slotEnd
   })
 }
 
@@ -429,6 +430,7 @@ const loadStudents = async () => {
 
 // 跟踪上个月份偏移
 const loadedMonthOffset = ref(null)
+const loadedCoachId = ref(null)
 
 const loadSchedule = async () => {
   if (!activeCoachId.value) return
@@ -437,17 +439,21 @@ const loadSchedule = async () => {
     const currentMonth = monthOffset.value
     const monthChanged = loadedMonthOffset.value !== currentMonth
 
-    if (monthChanged) {
+    // 切月或切教练时都需重载数据
+    const coachChanged = loadedCoachId.value !== activeCoachId.value
+    const needReload = monthChanged || coachChanged
+    if (needReload) {
       scheduleData.value = []
-      // 重置颜色映射，避免跨月复用导致不同学员分到相同颜色
+      // 重置颜色映射，避免跨月/跨教练复用导致不同学员分到相同颜色
       Object.keys(colorMap).forEach(k => delete colorMap[k])
       colorI = 0
       loadedMonthOffset.value = currentMonth
+      loadedCoachId.value = activeCoachId.value
     }
 
-    // 切月时加载整月数据，同月翻页只加载新出现的日期
+    // 切月或切教练时加载整月数据，同月同教练翻页只加载新出现的日期
     let datesToLoad
-    if (monthChanged) {
+    if (needReload) {
       datesToLoad = allMonthDays.value.filter(d => d.isCurrentMonth).map(d => d.date)
     } else {
       const alreadyLoaded = new Set((scheduleData.value || []).map(s => {
@@ -560,7 +566,9 @@ const handleSave = async () => {
       })
       ElMessage.success('保存成功')
       editVisible.value = false
-      loadSchedule()
+      loadedMonthOffset.value = null; loadedCoachId.value = null
+      scheduleData.value = []
+      await loadSchedule()
     } catch (e) {
       ElMessage.error(e?.response?.data?.message || e?.message || '保存失败')
     } finally { saving.value = false }
@@ -599,7 +607,13 @@ const handleSave = async () => {
   }
   saving.value = false
   ElMessage.success(`消课完成：成功${ok}人` + (fail ? `，失败${fail}人` : ''))
-  if (ok > 0) { editVisible.value = false; loadSchedule() }
+  if (ok > 0) {
+    editVisible.value = false
+    // 强制重新加载当前月数据（增量加载逻辑会跳过已加载日期，需重置标记）
+    loadedMonthOffset.value = null; loadedCoachId.value = null
+    scheduleData.value = []
+    await loadSchedule()
+  }
 }
 
 const handleDelete = () => {
@@ -607,9 +621,11 @@ const handleDelete = () => {
     .then(async () => {
       try {
         await api.delete(`/schedules/${editForm.value.id}`)
-        ElMessage.success('已取消排课')
+        ElMessage.success('已取消消课')
         editVisible.value = false
-        loadSchedule()
+        loadedMonthOffset.value = null; loadedCoachId.value = null
+        scheduleData.value = []
+        await loadSchedule()
       } catch { ElMessage.error('取消失败') }
     }).catch(() => {})
 }

@@ -166,7 +166,7 @@ const handleSave = async () => {
         id: form.id, remark: form.remark, recordDate: form.recordDate, recordTime: form.recordTime
       })
     }
-    ElMessage.success('消课成功'); dialogVisible.value = false; loadData()
+    ElMessage.success('消课成功'); dialogVisible.value = false; await loadData()
   } catch (e) {
     const msg = e?.response?.data?.message || e?.message || '消课失败'
     ElMessage.error(msg)
