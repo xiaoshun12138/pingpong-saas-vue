@@ -240,8 +240,8 @@ const updateStoreChart = () => {
   const actuals = storeBarData.value.map(d => d.actual)
   storeChart.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}<br/>{a0}: ¥{c0}<br/>{a1}: ¥{c1}' },
-    legend: { data: ['目标', '已完成'] },
-    grid: { left: '3%', right: '4%', bottom: storeNames.length > 4 ? '15%' : '3%', containLabel: true },
+    legend: { data: ['目标', '已完成'], bottom: 0, textStyle: { fontSize: 11 } },
+    grid: { left: '3%', right: '4%', bottom: storeNames.length > 4 ? '22%' : '10%', containLabel: true },
     xAxis: { type: 'category', data: storeNames, axisLabel: { interval: 0, fontSize: 11 } },
     yAxis: { type: 'value', axisLabel: { formatter: v => v >= 10000 ? (v/10000).toFixed(1) + '万' : '¥' + v } },
     series: [
