@@ -31,7 +31,7 @@
                 </div>
                 <div class="expand-student-name">{{ row.name }}</div>
                 <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" style="margin-top:4px">
-                  {{ row.status === 1 ? '在读' : '停课' }}
+                  {{ row.status === 1 ? '在训' : '停课' }}
                 </el-tag>
                 <div class="expand-student-meta">
                   <div v-if="row.phone" class="meta-row">手机号：{{ row.phone }}</div>

@@ -57,14 +57,7 @@
 
     <!-- 表格 -->
     <el-table :data="tableData" v-loading="loading" stripe style="width:100%" :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }">
-      <el-table-column prop="name" label="姓名" min-width="100">
-        <template #default="{row}">
-          <div class="cell-person">
-            <div class="cell-avatar" :style="{ background: avatarColor(row.role) }">{{ row.name?.charAt(0) || '?' }}</div>
-            <span class="cell-name">{{ row.name }}</span>
-          </div>
-        </template>
-      </el-table-column>
+      <el-table-column prop="name" label="姓名" min-width="100" />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="role" label="角色" width="90" align="center">
         <template #default="{row}">
@@ -260,16 +253,6 @@ const handleDelete = (row) => {
 const roleLabel = (r) => ({ boss: '老板', shop_owner: '店长', coach: '教练', sales: '销售' }[r] || r)
 const roleTag = (r) => ({ boss: 'danger', shop_owner: 'warning', coach: 'success', sales: 'primary' }[r] || '')
 
-const avatarColor = (role) => {
-  const map = {
-    boss: 'linear-gradient(135deg, #F56C6C, #E74C3C)',
-    shop_owner: 'linear-gradient(135deg, #E6A23C, #F39C12)',
-    coach: 'linear-gradient(135deg, #67C23A, #27AE60)',
-    sales: 'linear-gradient(135deg, #409EFF, #36cfc9)'
-  }
-  return map[role] || '#909399'
-}
-
 const onFilterChange = () => {
   page.current = 1
   loadData()
@@ -377,28 +360,6 @@ onMounted(async () => {
 }
 
 /* ===== 表格 ===== */
-.cell-person {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.cell-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.cell-name {
-  font-weight: 600;
-  color: #303133;
-  font-size: 14px;
-}
 .cell-store {
   font-size: 13px;
   color: #606266;

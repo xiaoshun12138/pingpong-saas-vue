@@ -20,7 +20,7 @@
         <div class="pool-stat-icon" style="background:linear-gradient(135deg,#67C23A,#27AE60)"><span>✅</span></div>
         <div class="pool-stat-info">
           <span class="pool-stat-num">{{ summary.activeStudents }}</span>
-          <span class="pool-stat-label">在读学员</span>
+          <span class="pool-stat-label">在训学员</span>
         </div>
       </div>
       <div class="pool-stat-card" :class="{ active: activeTab === 'inactive' }" @click="switchTab('inactive')">
@@ -78,21 +78,16 @@
       @sort-change="onSortChange"
     >
       <el-table-column prop="name" label="姓名" min-width="100">
-        <template #default="{row}">
-          <div class="cell-person">
-            <div class="cell-avatar" :style="{ background: avatarColor(row.id) }">{{ row.name?.charAt(0) || '?' }}</div>
-            <span class="cell-name">{{ row.name }}</span>
-          </div>
-        </template>
+        <template #default="{row}">{{ row.name }}</template>
       </el-table-column>
       <el-table-column prop="phone" label="手机号" width="130">
         <template #default="{row}"><span class="cell-phone">{{ row.phone || '-' }}</span></template>
       </el-table-column>
       <el-table-column v-if="isBoss" prop="storeName" label="门店" min-width="110">
-        <template #default="{row}"><span class="cell-store">{{ row.storeName || '-' }}</span></template>
+        <template #default="{row}"><span>{{ row.storeName || '-' }}</span></template>
       </el-table-column>
       <el-table-column prop="coachName" label="教练" min-width="90">
-        <template #default="{row}"><span class="cell-coach">{{ row.coachName || '-' }}</span></template>
+        <template #default="{row}">{{ row.coachName || '-' }}</template>
       </el-table-column>
       <el-table-column prop="totalPaid" label="缴费总额" width="120" align="right" sortable="custom">
         <template #default="{row}"><span class="cell-money">¥{{ Number(row.totalPaid).toLocaleString() }}</span></template>
@@ -120,7 +115,7 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="70" align="center">
         <template #default="{row}">
-          <el-tag :type="row.status===1?'success':'info'" size="small" effect="plain" round>{{ row.status===1?'在读':'停课' }}</el-tag>
+          <el-tag :type="row.status===1?'success':'info'" size="small" effect="plain" round>{{ row.status===1?'在训':'停课' }}</el-tag>
         </template>
       </el-table-column>
     </el-table>
@@ -135,12 +130,7 @@
       :header-cell-style="{ background:'#f5f7fa', color:'#606266', fontWeight:600 }"
     >
       <el-table-column prop="name" label="姓名" min-width="100">
-        <template #default="{row}">
-          <div class="cell-person">
-            <div class="cell-avatar" :style="{ background: avatarColor(row.id) }">{{ row.name?.charAt(0) || '?' }}</div>
-            <span class="cell-name">{{ row.name }}</span>
-          </div>
-        </template>
+        <template #default="{row}">{{ row.name }}</template>
       </el-table-column>
       <el-table-column prop="phone" label="手机号" width="130">
         <template #default="{row}"><span class="cell-phone">{{ row.phone || '-' }}</span></template>
@@ -219,18 +209,6 @@ const filters = reactive({
   sortOrder: 'desc'
 })
 
-const palette = [
-  'linear-gradient(135deg,#a8e6cf,#88d8a8)',
-  'linear-gradient(135deg,#ffd3b6,#ffaaa5)',
-  'linear-gradient(135deg,#a0e7e5,#7fd8d5)',
-  'linear-gradient(135deg,#b4f8c8,#90e0a8)',
-  'linear-gradient(135deg,#fbe7c6,#f5d99a)',
-  'linear-gradient(135deg,#fcbad3,#f8a0c0)',
-  'linear-gradient(135deg,#c7ceea,#a5b4d8)',
-  'linear-gradient(135deg,#caffbf,#a8e6a0)'
-]
-const avatarColor = (id) => palette[(id || 0) % palette.length]
-
 const formatDate = (dt) => {
   if (!dt) return '-'
   try {
@@ -264,7 +242,6 @@ const loadData = async () => {
     }
     const res = await api.get('/customer-pool', { params })
     let records = res.data.records || []
-    // 过滤 Tab
     if (activeTab.value === 'active') {
       records = records.filter(r => r.status === 1)
     } else if (activeTab.value === 'inactive') {
@@ -298,7 +275,6 @@ const loadSummary = async () => {
     summary.activeStudents = all.filter(s => s.status === 1).length
     summary.inactiveStudents = all.filter(s => s.status === 0).length
 
-    // 需约课数
     const ns = await api.get('/customer-pool/suggest-schedule', {
       params: { days: needDays.value, storeId: isBoss.value ? (filters.storeId || undefined) : userInfo.storeId }
     })
@@ -375,7 +351,6 @@ onMounted(async () => {
 <style scoped>
 .customer-pool-page { padding: 20px 24px; }
 
-/* ===== 统计卡片 ===== */
 .pool-stats {
   display: flex;
   gap: 12px;
@@ -429,7 +404,6 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-/* ===== 工具栏 ===== */
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -442,81 +416,22 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-/* ===== 提示条 ===== */
 .alert-bar {
   margin-bottom: 12px;
 }
 
-/* ===== 表格单元格 ===== */
-.cell-person {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.cell-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.cell-name {
-  font-weight: 600;
-  color: #303133;
-  font-size: 14px;
-}
-.cell-phone {
-  font-size: 13px;
-  color: #606266;
-}
-.cell-store {
-  font-size: 13px;
-  color: #606266;
-}
-.cell-coach {
-  font-size: 13px;
-  color: #606266;
-}
-.cell-money {
-  font-weight: 700;
-  color: #F56C6C;
-  font-size: 14px;
-}
-.cell-num {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-}
+.cell-phone { font-size: 13px; color: #606266; }
+.cell-money { font-weight: 700; color: #F56C6C; font-size: 14px; }
+.cell-num { font-size: 14px; font-weight: 600; color: #303133; }
 .cell-last-lesson {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
 }
-.cell-date {
-  font-size: 13px;
-  color: #606266;
-}
-.cell-days {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-.days-ok {
-  color: #67C23A;
-  background: #f0f9eb;
-}
-.days-warn {
-  color: #E6A23C;
-  background: #fdf6ec;
-}
-.days-danger {
-  color: #F56C6C;
-  background: #fef0f0;
-}
+.cell-date { font-size: 13px; color: #606266; }
+.cell-days { font-size: 11px; padding: 1px 6px; border-radius: 4px; }
+.days-ok { color: #67C23A; background: #f0f9eb; }
+.days-warn { color: #E6A23C; background: #fdf6ec; }
+.days-danger { color: #F56C6C; background: #fef0f0; }
 </style>
