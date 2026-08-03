@@ -30,6 +30,13 @@
           <span class="pool-stat-label">停课学员</span>
         </div>
       </div>
+      <div class="pool-stat-card" :class="{ active: activeTab === 'churned' }" @click="switchTab('churned')">
+        <div class="pool-stat-icon" style="background:linear-gradient(135deg,#F56C6C,#e74c3c)"><span>⚠️</span></div>
+        <div class="pool-stat-info">
+          <span class="pool-stat-num">{{ summary.churned }}</span>
+          <span class="pool-stat-label">流失学员</span>
+        </div>
+      </div>
     </div>
 
     <!-- 工具栏 -->
@@ -64,6 +71,13 @@
     <div v-if="activeTab === 'suggest-schedule'" class="alert-bar">
       <el-alert type="warning" :closable="false" show-icon>
         <span>以下学员超过 {{ needDays }} 天未上课且有剩余课时，建议尽快安排约课</span>
+      </el-alert>
+    </div>
+
+    <!-- 流失学员提示条 -->
+    <div v-if="activeTab === 'churned'" class="alert-bar">
+      <el-alert type="error" :closable="false" show-icon>
+        <span>课时已耗尽但仍在籍，建议尝试召回。</span>
       </el-alert>
     </div>
 
@@ -104,9 +118,10 @@
           <el-tag :type="row.remainingLessons > 10 ? 'success' : row.remainingLessons > 0 ? 'warning' : 'danger'" size="small" effect="plain" round>{{ row.remainingLessons }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="lastLessonAt" label="最近上课" width="160" align="center" sortable="custom">
+      <el-table-column :label="activeTab === 'churned' ? '课时用完' : '最近上课'" width="160" align="center" sortable="custom">
         <template #default="{row}">
-          <div class="cell-last-lesson">
+          <div v-if="activeTab === 'churned'" style="font-size:13px;color:#606266">{{ formatDate(row.lastLessonAt) }}</div>
+          <div v-else class="cell-last-lesson">
             <span class="cell-date">{{ formatDate(row.lastLessonAt) }}</span>
             <span v-if="row.daysSinceLastLesson !== undefined && row.daysSinceLastLesson !== null" class="cell-days" :class="{ 'days-warn': row.daysSinceLastLesson >= 14, 'days-ok': row.daysSinceLastLesson < 7 }">
               {{ row.daysSinceLastLesson }}天前
@@ -114,9 +129,14 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="70" align="center">
+      <el-table-column prop="status" label="状态" width="70" align="center" v-if="activeTab !== 'churned'">
         <template #default="{row}">
           <el-tag :type="row.status===1?'success':'info'" size="small" effect="plain" round>{{ row.status===1?'在训':'停课' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="activeTab === 'inactive'" label="操作" width="80" align="center" fixed="right">
+        <template #default="{row}">
+          <el-button type="success" size="small" plain @click="handleReactive(row)">复课</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -187,6 +207,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import api from '../api'
 
 const router = useRouter()
@@ -200,7 +221,7 @@ const stores = ref([])
 const activeTab = ref('all')
 const needDays = ref(14)
 
-const summary = reactive({ totalStudents: 0, needSchedule: 0, activeStudents: 0, inactiveStudents: 0 })
+const summary = reactive({ totalStudents: 0, needSchedule: 0, activeStudents: 0, inactiveStudents: 0, churned: 0 })
 
 const page = reactive({ current: 1, size: 20, total: 0 })
 const filters = reactive({
@@ -233,6 +254,23 @@ const calcDays = (dt) => {
 const loadData = async () => {
   loading.value = true
   try {
+    // 流失学员走独立接口
+    if (activeTab.value === 'churned') {
+      const params = {
+        current: page.current,
+        size: page.size,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+        keyword: filters.keyword || undefined,
+        storeId: isBoss.value ? (filters.storeId || undefined) : userInfo.storeId
+      }
+      const res = await api.get('/customer-pool/churned', { params })
+      tableData.value = res.data.records || []
+      page.total = res.data.total
+      loadSummary()
+      return
+    }
+
     const params = {
       current: page.current,
       size: page.size,
@@ -280,6 +318,11 @@ const loadSummary = async () => {
       params: { days: needDays.value, storeId: isBoss.value ? (filters.storeId || undefined) : userInfo.storeId }
     })
     summary.needSchedule = (ns.data || []).length
+
+    const chRes = await api.get('/customer-pool/churned', {
+      params: { size: 1, storeId: isBoss.value ? (filters.storeId || undefined) : userInfo.storeId }
+    })
+    summary.churned = (chRes.data?.total || 0)
   } catch {}
 }
 
@@ -292,6 +335,7 @@ const loadStores = async () => {
 
 const switchTab = (tab) => {
   activeTab.value = tab
+  page.current = 1
   if (tab === 'suggest-schedule') {
     loadNeedSchedule()
   } else {
@@ -338,6 +382,20 @@ const resetFilters = () => {
 
 const goSchedule = (row) => {
   router.push('/schedule')
+}
+
+const goRenew = (row) => {
+  router.push({ path: '/course-orders', query: { studentId: row.id, studentName: row.name } })
+}
+
+const handleReactive = async (row) => {
+  try {
+    await api.put(`/students/${row.id}`, { status: 1 })
+    ElMessage.success(`已将学员「${row.name}」恢复为在训状态`)
+    loadData()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.msg || '操作失败')
+  }
 }
 
 onMounted(async () => {
