@@ -28,7 +28,7 @@
 
     <!-- 目标完成率卡片 -->
     <el-row :gutter="16" class="target-row" style="margin-bottom:16px">
-      <el-col :span="8">
+      <el-col :span="8" v-if="isBoss">
         <div class="chart-card">
           <div class="chart-title">年度课消目标完成率</div>
           <div ref="yearChartRef" class="pie-chart"></div>
@@ -39,7 +39,7 @@
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="isBoss ? 8 : 12">
         <div class="chart-card">
           <div class="chart-title">月度课消目标完成率</div>
           <div ref="monthChartRef" class="pie-chart"></div>
@@ -50,7 +50,7 @@
           </div>
         </div>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="isBoss ? 8 : 12">
         <div class="chart-card">
           <div class="chart-title">周度课消目标完成率</div>
           <div ref="weekChartRef" class="pie-chart"></div>

@@ -47,7 +47,7 @@
             <el-option v-for="o in studentOrders.filter(x => x.remainingLessons > 0)" :key="o.id" :label="`${o.orderNo} 余${o.remainingLessons}课时`" :value="o.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="消课课时" required><el-input-number v-model="form.lessons" :min="1" /></el-form-item>
+        <el-form-item label="消课课时" required><el-input-number v-model="form.lessons" :min="1" :disabled="true" /></el-form-item>
         <el-form-item label="上课日期"><el-date-picker v-model="form.recordDate" type="date" value-format="YYYY-MM-DD" /></el-form-item>
         <el-form-item label="上课时间"><el-time-picker v-model="form.recordTime" format="HH:mm:ss" value-format="HH:mm:ss" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
